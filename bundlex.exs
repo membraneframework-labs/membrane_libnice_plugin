@@ -9,9 +9,14 @@ defmodule Membrane.ICE.BundlexProject do
 
   defp nifs(_platform) do
     [
-      native: [
-        sources: ["native.c", "_generated/native.c"],
-        deps: [membrane_common_c: :membrane, unifex: :unifex]
+      agent: [
+        sources: ["agent.c", "_generated/agent.c"],
+        deps: [
+          membrane_common_c: :membrane,
+          unifex: :unifex,
+          bunch_native: :bunch
+        ],
+        pkg_configs: ["nice"]
       ]
     ]
   end
