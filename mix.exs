@@ -37,7 +37,6 @@ defmodule Membrane.ICE.Mixfile do
 
   defp deps do
     [
-      {:bunch_native, "~> 0.2.0"},
       {:membrane_core, "~> 0.5.0"},
       {:membrane_common_c, "~> 0.3.0"},
       {:unifex, "~> 0.2.6"},

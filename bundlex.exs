@@ -13,8 +13,7 @@ defmodule Membrane.ICE.BundlexProject do
         sources: ["agent.c", "_generated/agent.c"],
         deps: [
           membrane_common_c: :membrane,
-          unifex: :unifex,
-          bunch_native: :bunch
+          unifex: :unifex
         ],
         pkg_configs: ["nice"]
       ]
