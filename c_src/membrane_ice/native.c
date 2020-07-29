@@ -2,6 +2,8 @@
 #include <nice/agent.h>
 #include <stdio.h>
 
+#include "native.h"
+
 static void cb_candidate_gathering_done(NiceAgent *, guint, gpointer);
 static void cb_component_state_changed(NiceAgent *, guint, guint, guint,
                                        gpointer);
@@ -11,7 +13,14 @@ static void cb_recv(NiceAgent *, guint, guint, guint, gchar *, gpointer);
 
 static GMainLoop *gloop;
 
-int main(int argc, char **argv) {
+UnifexEnv *env;
+
+UNIFEX_TERM init(UnifexEnv *envl) {
+  env = envl;
+  return init_result_ok(env);
+}
+
+int start() {
   g_networking_init();
   gloop = g_main_loop_new(NULL, FALSE);
   NiceAgent *agent = nice_agent_new(g_main_loop_get_context(gloop),
@@ -48,11 +57,14 @@ static void cb_candidate_gathering_done(NiceAgent *agent, guint stream_id,
   fflush(stdout);
   gchar ipstr[INET6_ADDRSTRLEN];
   GSList *cands = nice_agent_get_local_candidates(agent, stream_id, 1);
-  for (GSList *cand = cands; cand != NULL; cand = cand->next) {
+  for (GSList *cand = cands; cand != NULL; cand = cand->next)
+  {
     NiceCandidate *c = (NiceCandidate *)cand->data;
     nice_address_to_string(&c->addr, ipstr);
     printf("%s:%u\n", ipstr, nice_address_get_port(&c->addr));
+    send_candidate(env, *env->reply_to, 0, ipstr);
   }
+  send_gathering_done(env, *env->reply_to, 0);
   g_main_loop_quit(gloop);
 }
 
@@ -73,4 +85,9 @@ static void cb_recv(NiceAgent *agent, guint sream_id, guint component_id,
     g_main_loop_quit(gloop);
   printf("%.*s", len, buf);
   fflush(stdout);
+}
+
+UNIFEX_TERM start_gathering_candidates(UnifexEnv *envl) {
+  start();
+  return start_gathering_candidates_result_ok(env);
 }

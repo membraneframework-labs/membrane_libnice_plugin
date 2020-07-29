@@ -15,7 +15,8 @@ defmodule Membrane.ICE.Mixfile do
       deps: deps(),
 
       # hex
-      description: "Interactive Connectivity Establishment (ICE) implementation for Membrane Multimedia Framework",
+      description:
+        "Interactive Connectivity Establishment (ICE) implementation for Membrane Multimedia Framework",
       package: package(),
 
       # docs
@@ -38,8 +39,8 @@ defmodule Membrane.ICE.Mixfile do
   defp deps do
     [
       {:membrane_core, "~> 0.5.0"},
-      {:membrane_common_c, "~> 0.3.0"},
-      {:unifex, git: "https://github.com/membraneframework/unifex.git", branch: "master"},
+      {:unifex,
+       git: "https://github.com/membraneframework/unifex.git", branch: "master", override: true},
       {:ex_doc, "~> 0.22", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false}
     ]
