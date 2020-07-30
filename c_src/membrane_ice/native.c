@@ -1,8 +1,8 @@
+#include "native.h"
+
 #include <gio/gnetworking.h>
 #include <nice/agent.h>
 #include <stdio.h>
-
-#include "native.h"
 
 static void cb_candidate_gathering_done(NiceAgent *, guint, gpointer);
 static void cb_component_state_changed(NiceAgent *, guint, guint, guint,
@@ -12,20 +12,16 @@ static void cb_new_selected_pair(NiceAgent *, guint, guint, gchar *, gchar *,
 static void cb_recv(NiceAgent *, guint, guint, guint, gchar *, gpointer);
 
 static GMainLoop *gloop;
+static UnifexEnv *env;
 
-UnifexEnv *env;
+// TODO handle errors
 
 UNIFEX_TERM init(UnifexEnv *envl) {
-  env = envl;
-  return init_result_ok(env);
-}
-
-int start() {
-  g_networking_init();
-  gloop = g_main_loop_new(NULL, FALSE);
-  NiceAgent *agent = nice_agent_new(g_main_loop_get_context(gloop),
-                                    NICE_COMPATIBILITY_RFC5245);
-
+  State *state = unifex_alloc_state(envl);
+  state->gloop = g_main_loop_new(NULL, FALSE);
+  state->agent = nice_agent_new(g_main_loop_get_context(state->gloop), NICE_COMPATIBILITY_RFC5245);
+  gloop = state->gloop;
+  NiceAgent *agent = state->agent;
   g_object_set(agent, "stun-server", "64.233.161.127", NULL);
   g_object_set(agent, "stun-server-port", 19302, NULL);
   g_object_set(agent, "controlling-mode", FALSE, NULL);
@@ -37,31 +33,26 @@ int start() {
   g_signal_connect(G_OBJECT(agent), "new-selected-pair",
                    G_CALLBACK(cb_new_selected_pair), NULL);
 
-  guint stream_id = nice_agent_add_stream(agent, 1);
-  if (stream_id == 0) {
-    printf("error");
-  }
-  nice_agent_attach_recv(agent, stream_id, 1, g_main_loop_get_context(gloop),
-                         cb_recv, NULL);
-  nice_agent_gather_candidates(agent, stream_id);
+   guint stream_id = nice_agent_add_stream(agent, 1);
 
-  g_main_loop_run(gloop);
-  g_main_loop_unref(gloop);
-  g_object_unref(agent);
-  return 0;
+  nice_agent_attach_recv(agent, stream_id, 1, g_main_loop_get_context(state->gloop),
+                         cb_recv, NULL);
+
+  state->stream_id = stream_id;
+
+  env = envl;
+  return init_result_ok(env, state);
 }
 
 static void cb_candidate_gathering_done(NiceAgent *agent, guint stream_id,
                                         gpointer user_data) {
-  printf("Gathering done\n");
-  fflush(stdout);
+  UNIFEX_UNUSED(user_data);
   gchar ipstr[INET6_ADDRSTRLEN];
   GSList *cands = nice_agent_get_local_candidates(agent, stream_id, 1);
   for (GSList *cand = cands; cand != NULL; cand = cand->next)
   {
     NiceCandidate *c = (NiceCandidate *)cand->data;
     nice_address_to_string(&c->addr, ipstr);
-    printf("%s:%u\n", ipstr, nice_address_get_port(&c->addr));
     send_candidate(env, *env->reply_to, 0, ipstr);
   }
   send_gathering_done(env, *env->reply_to, 0);
@@ -71,23 +62,54 @@ static void cb_candidate_gathering_done(NiceAgent *agent, guint stream_id,
 static void cb_component_state_changed(NiceAgent *agent, guint stream_id,
                                        guint component_id, guint state,
                                        gpointer user_data) {
-  printf("cb component state changed\n");
+  UNIFEX_UNUSED(agent);
+  UNIFEX_UNUSED(stream_id);
+  UNIFEX_UNUSED(component_id);
+  UNIFEX_UNUSED(state);
+  UNIFEX_UNUSED(user_data);
 }
 
 static void cb_new_selected_pair(NiceAgent *agent, guint stream_id,
                                  guint component_id, gchar *lfoundation,
-                                 gchar *rfoundation, gpointer user_data) {}
+                                 gchar *rfoundation, gpointer user_data) {
+   UNIFEX_UNUSED(agent);
+   UNIFEX_UNUSED(stream_id);
+   UNIFEX_UNUSED(component_id);
+   UNIFEX_UNUSED(lfoundation);
+   UNIFEX_UNUSED(rfoundation);
+   UNIFEX_UNUSED(user_data);
+ }
 
-static void cb_recv(NiceAgent *agent, guint sream_id, guint component_id,
+static void cb_recv(NiceAgent *agent, guint stream_id, guint component_id,
                     guint len, gchar *buf, gpointer user_data) {
-  printf("cb recv");
+  UNIFEX_UNUSED(agent);
+  UNIFEX_UNUSED(stream_id);
+  UNIFEX_UNUSED(component_id);
+  UNIFEX_UNUSED(len);
+  UNIFEX_UNUSED(buf);
+  UNIFEX_UNUSED(user_data);
   if (len == 1 && buf[0] == '\0')
     g_main_loop_quit(gloop);
   printf("%.*s", len, buf);
   fflush(stdout);
 }
 
-UNIFEX_TERM start_gathering_candidates(UnifexEnv *envl) {
-  start();
-  return start_gathering_candidates_result_ok(env);
+UNIFEX_TERM start_gathering_candidates(UnifexEnv *_env, State *state) {
+  UNIFEX_UNUSED(_env);
+  g_networking_init();
+  nice_agent_gather_candidates(state->agent, state->stream_id);
+  g_main_loop_run(gloop);
+  return start_gathering_candidates_result_ok(env, state);
+}
+
+void handle_destroy_state(UnifexEnv *env, State *state) {
+  UNIFEX_UNUSED(env);
+  if (state->gloop) {
+    g_main_loop_unref(state->gloop);
+    state->gloop = NULL;
+  }
+  if (state->agent) {
+    g_object_unref(state->agent);
+    state->agent = NULL;
+  }
 }

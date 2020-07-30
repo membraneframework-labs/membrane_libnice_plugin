@@ -1,10 +1,12 @@
-module(Membrane.ICE.Native)
+module Membrane.ICE.Native
 
-interface(CNode)
+interface CNode
 
-spec init() :: {:ok :: label}
+state_type "State"
 
-spec start_gathering_candidates() :: {:ok :: label}
+spec init() :: {:ok :: label, state}
+
+spec start_gathering_candidates(state) :: {:ok :: label, state}
 
 sends {:candidate :: label, candidate :: string}
 sends {:gathering_done :: label}
