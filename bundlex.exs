@@ -13,6 +13,7 @@ defmodule Membrane.ICE.BundlexProject do
         sources: ["native.c", "_generated/cnode/native.c"],
         deps: [unifex: :unifex],
         pkg_configs: ["nice"],
+        libs: ["pthread"],
         interface: :cnode
       ]
     ]

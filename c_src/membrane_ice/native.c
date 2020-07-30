@@ -3,6 +3,8 @@
 #include <gio/gnetworking.h>
 #include <nice/agent.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <pthread.h>
 
 static void cb_candidate_gathering_done(NiceAgent *, guint, gpointer);
 static void cb_component_state_changed(NiceAgent *, guint, guint, guint,
@@ -10,6 +12,7 @@ static void cb_component_state_changed(NiceAgent *, guint, guint, guint,
 static void cb_new_selected_pair(NiceAgent *, guint, guint, gchar *, gchar *,
                                  gpointer);
 static void cb_recv(NiceAgent *, guint, guint, guint, gchar *, gpointer);
+static void *main_loop_thread_func(void *);
 
 static GMainLoop *gloop;
 static UnifexEnv *env;
@@ -33,15 +36,24 @@ UNIFEX_TERM init(UnifexEnv *envl) {
   g_signal_connect(G_OBJECT(agent), "new-selected-pair",
                    G_CALLBACK(cb_new_selected_pair), NULL);
 
-   guint stream_id = nice_agent_add_stream(agent, 1);
+  guint stream_id = nice_agent_add_stream(agent, 1);
 
   nice_agent_attach_recv(agent, stream_id, 1, g_main_loop_get_context(state->gloop),
                          cb_recv, NULL);
 
   state->stream_id = stream_id;
+  pthread_t tid = pthread_create(&tid, NULL, main_loop_thread_func, (void *)state->gloop);
+  state->gloop_tid = tid;
 
   env = envl;
   return init_result_ok(env, state);
+}
+
+static void *main_loop_thread_func(void *user_data) {
+  GMainLoop *loop = (GMainLoop *)user_data;
+  g_main_loop_run(loop);
+  g_main_loop_unref(loop);
+  return NULL;
 }
 
 static void cb_candidate_gathering_done(NiceAgent *agent, guint stream_id,
@@ -98,7 +110,6 @@ UNIFEX_TERM start_gathering_candidates(UnifexEnv *_env, State *state) {
   UNIFEX_UNUSED(_env);
   g_networking_init();
   nice_agent_gather_candidates(state->agent, state->stream_id);
-  g_main_loop_run(gloop);
   return start_gathering_candidates_result_ok(env, state);
 }
 
@@ -112,4 +123,5 @@ void handle_destroy_state(UnifexEnv *env, State *state) {
     g_object_unref(state->agent);
     state->agent = NULL;
   }
+  // TODO flush main loop thread here
 }

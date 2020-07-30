@@ -9,6 +9,7 @@ struct State {
   GMainLoop *gloop;
   NiceAgent *agent;
   unsigned int stream_id;
+  pthread_t gloop_tid;
 };
 
 #include "_generated/native.h"
