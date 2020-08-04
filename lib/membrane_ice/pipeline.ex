@@ -22,7 +22,7 @@ defmodule Example.Pipeline do
 
   @impl true
   def handle_stopped_to_prepared(state) do
-    {{:ok, forward: {:sink, :start_gathering_candidates}}, state}
+    {{:ok, forward: {:sink, :gather_candidates}}, state}
   end
 
 end

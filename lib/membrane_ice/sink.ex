@@ -20,18 +20,18 @@ defmodule Membrane.Element.ICE.Sink do
   end
 
   @impl true
-  def handle_other(:start_gathering_candidates, _context, %{cnode: cnode} = state) do
-    Unifex.CNode.call(cnode, :start_gathering_candidates)
+  def handle_other(:gather_candidates, _context, %{cnode: cnode} = state) do
+    Unifex.CNode.call(cnode, :gather_candidates)
     {:ok, state}
   end
 
   @impl true
-  def handle_other({:candidate, _ip} = candidate, _context, state) do
+  def handle_other({:new_candidate_full, _ip} = candidate, _context, state) do
     {{:ok, notify: candidate}, state}
   end
 
   @impl true
-  def handle_other({:gathering_done}, _context, state) do
+  def handle_other({:candidate_gathering_done}, _context, state) do
     {{:ok, notify: :gathering_done}, state}
   end
 end

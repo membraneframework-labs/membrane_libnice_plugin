@@ -6,7 +6,7 @@ state_type "State"
 
 spec init() :: {:ok :: label, state}
 
-spec start_gathering_candidates(state) :: {:ok :: label, state}
+spec gather_candidates(state) :: {:ok :: label, state}
 
-sends {:candidate :: label, candidate :: string}
-sends {:gathering_done :: label}
+sends {:new_candidate_full :: label, candidate :: string}
+sends {:candidate_gathering_done :: label}

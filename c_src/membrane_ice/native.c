@@ -9,6 +9,7 @@
 static void cb_candidate_gathering_done(NiceAgent *, guint, gpointer);
 static void cb_component_state_changed(NiceAgent *, guint, guint, guint,
                                        gpointer);
+static void cb_new_candidate_full(NiceAgent *, NiceCandidate *, gpointer);
 static void cb_new_selected_pair(NiceAgent *, guint, guint, gchar *, gchar *,
                                  gpointer);
 static void cb_recv(NiceAgent *, guint, guint, guint, gchar *, gpointer);
@@ -33,6 +34,8 @@ UNIFEX_TERM init(UnifexEnv *envl) {
                    G_CALLBACK(cb_candidate_gathering_done), NULL);
   g_signal_connect(G_OBJECT(agent), "component-state-changed",
                    G_CALLBACK(cb_component_state_changed), NULL);
+  g_signal_connect(G_OBJECT(agent), "new-candidate-full",
+                  G_CALLBACK(cb_new_candidate_full), NULL);
   g_signal_connect(G_OBJECT(agent), "new-selected-pair",
                    G_CALLBACK(cb_new_selected_pair), NULL);
 
@@ -56,18 +59,17 @@ static void *main_loop_thread_func(void *user_data) {
   return NULL;
 }
 
+static void cb_new_candidate_full(NiceAgent *agent, NiceCandidate *candidate, gpointer user_data) {
+  UNIFEX_UNUSED(user_data);
+  gchar ip_str[INET6_ADDRSTRLEN];
+  nice_address_to_string(&candidate->addr, ip_str);
+  send_new_candidate_full(env, *env->reply_to, 0, ip_str);
+}
+
 static void cb_candidate_gathering_done(NiceAgent *agent, guint stream_id,
                                         gpointer user_data) {
   UNIFEX_UNUSED(user_data);
-  gchar ipstr[INET6_ADDRSTRLEN];
-  GSList *cands = nice_agent_get_local_candidates(agent, stream_id, 1);
-  for (GSList *cand = cands; cand != NULL; cand = cand->next)
-  {
-    NiceCandidate *c = (NiceCandidate *)cand->data;
-    nice_address_to_string(&c->addr, ipstr);
-    send_candidate(env, *env->reply_to, 0, ipstr);
-  }
-  send_gathering_done(env, *env->reply_to, 0);
+  send_candidate_gathering_done(env, *env->reply_to, 0);
   g_main_loop_quit(gloop);
 }
 
@@ -106,11 +108,11 @@ static void cb_recv(NiceAgent *agent, guint stream_id, guint component_id,
   fflush(stdout);
 }
 
-UNIFEX_TERM start_gathering_candidates(UnifexEnv *_env, State *state) {
+UNIFEX_TERM gather_candidates(UnifexEnv *_env, State *state) {
   UNIFEX_UNUSED(_env);
   g_networking_init();
   nice_agent_gather_candidates(state->agent, state->stream_id);
-  return start_gathering_candidates_result_ok(env, state);
+  return gather_candidates_result_ok(env, state);
 }
 
 void handle_destroy_state(UnifexEnv *env, State *state) {
