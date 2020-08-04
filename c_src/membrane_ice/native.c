@@ -61,13 +61,14 @@ static void *main_loop_thread_func(void *user_data) {
 
 static void cb_new_candidate_full(NiceAgent *agent, NiceCandidate *candidate, gpointer user_data) {
   UNIFEX_UNUSED(user_data);
-  gchar ip_str[INET6_ADDRSTRLEN];
-  nice_address_to_string(&candidate->addr, ip_str);
-  send_new_candidate_full(env, *env->reply_to, 0, ip_str);
+  gchar *candidate_sdp_str = nice_agent_generate_local_candidate_sdp(agent, candidate);
+  send_new_candidate_full(env, *env->reply_to, 0, candidate_sdp_str);
 }
 
 static void cb_candidate_gathering_done(NiceAgent *agent, guint stream_id,
                                         gpointer user_data) {
+  UNIFEX_UNUSED(agent);
+  UNIFEX_UNUSED(stream_id);
   UNIFEX_UNUSED(user_data);
   send_candidate_gathering_done(env, *env->reply_to, 0);
   g_main_loop_quit(gloop);
@@ -113,6 +114,19 @@ UNIFEX_TERM gather_candidates(UnifexEnv *_env, State *state) {
   g_networking_init();
   nice_agent_gather_candidates(state->agent, state->stream_id);
   return gather_candidates_result_ok(env, state);
+}
+
+UNIFEX_TERM set_remote_candidates(UnifexEnv *env, State *state, char *candidates) {
+  NiceCandidate *candidate = nice_agent_parse_remote_candidate_sdp(state->agent, state->stream_id, candidates);
+  if(candidate == NULL) {
+    return set_remote_candidates_result_error_failed_to_parse_sdp_string(env);
+  }
+  GSList *cands = NULL;
+  cands = g_slist_append(cands, candidate);
+  if(nice_agent_set_remote_candidates(state->agent, state->stream_id, 1, cands) < 0) {
+    return set_remote_candidates_result_error_failed_to_add(env);
+  }
+  return set_remote_candidates_result_ok(env, state);
 }
 
 void handle_destroy_state(UnifexEnv *env, State *state) {
