@@ -14,6 +14,7 @@ static void cb_new_selected_pair(NiceAgent *, guint, guint, gchar *, gchar *,
                                  gpointer);
 static void cb_recv(NiceAgent *, guint, guint, guint, gchar *, gpointer);
 static void *main_loop_thread_func(void *);
+static void parse_credentials(char *, char **, char **);
 
 static GMainLoop *gloop;
 static UnifexEnv *env;
@@ -116,6 +117,32 @@ UNIFEX_TERM gather_candidates(UnifexEnv *_env, State *state) {
   return gather_candidates_result_ok(env, state);
 }
 
+UNIFEX_TERM get_local_credentials(UnifexEnv *env, State *state) {
+  gchar *ufrag = NULL;
+  gchar *pwd = NULL;
+  if(!nice_agent_get_local_credentials(state->agent, state->stream_id, &ufrag, &pwd)) {
+    return get_local_credentials_result_error_failed_to_get_credentials(env);
+  }
+  ufrag = strcat(ufrag, " ");
+  gchar *credentials = strcat(ufrag, pwd);
+  return get_local_credentials_result_ok(env, credentials);
+}
+
+UNIFEX_TERM set_remote_credentials(UnifexEnv *env, State *state, char *credentials) {
+  char *ufrag = NULL;
+  char *pwd = NULL;
+  parse_credentials(credentials, &ufrag, &pwd);
+  if(!nice_agent_set_remote_credentials(state->agent, state->stream_id, ufrag, pwd)) {
+    return set_remote_credentials_result_error_failed_to_set_credentials(env);
+  }
+  return set_remote_credentials_result_ok(env, state);
+}
+
+static void parse_credentials(char *credentials, char **ufrag, char **pwd) {
+  *ufrag = strtok(credentials, " ");
+  *pwd = strtok(NULL, " ");
+}
+
 UNIFEX_TERM set_remote_candidates(UnifexEnv *env, State *state, char *candidates) {
   NiceCandidate *candidate = nice_agent_parse_remote_candidate_sdp(state->agent, state->stream_id, candidates);
   if(candidate == NULL) {
@@ -124,7 +151,7 @@ UNIFEX_TERM set_remote_candidates(UnifexEnv *env, State *state, char *candidates
   GSList *cands = NULL;
   cands = g_slist_append(cands, candidate);
   if(nice_agent_set_remote_candidates(state->agent, state->stream_id, 1, cands) < 0) {
-    return set_remote_candidates_result_error_failed_to_add(env);
+    return set_remote_candidates_result_error_failed_to_set(env);
   }
   return set_remote_candidates_result_ok(env, state);
 }

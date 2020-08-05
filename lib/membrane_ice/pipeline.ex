@@ -15,6 +15,12 @@ defmodule Example.Pipeline do
   end
 
   @impl true
+  def handle_notification({:local_credentials, credentials}, from, state) do
+    IO.inspect("pipeline got notification #{inspect(credentials)} from #{from} ")
+    {{:ok, forward: {:sink, {:set_remote_credentials, credentials}}}, state}
+  end
+
+  @impl true
   def handle_notification({:new_candidate_full, candidates}, from, state) do
     IO.inspect("pipeline got notification #{inspect(candidates)} from #{from} ")
     {{:ok, forward: {:sink, {:set_remote_candidates, candidates}}}, state}
@@ -28,7 +34,7 @@ defmodule Example.Pipeline do
 
   @impl true
   def handle_stopped_to_prepared(state) do
-    {{:ok, forward: {:sink, :gather_candidates}}, state}
+    {{:ok, forward: {:sink, :get_local_credentials}}, state}
   end
 
 end

@@ -4,10 +4,10 @@ defmodule Membrane.Element.ICE.Sink do
   require Unifex.CNode
 
   def_input_pad :input,
-    availability: :on_request,
-    caps: :any,
-    mode: :pull,
-    demand_unit: :buffers
+                availability: :on_request,
+                caps: :any,
+                mode: :pull,
+                demand_unit: :buffers
 
   @impl true
   def handle_init(_options) do
@@ -16,6 +16,18 @@ defmodule Membrane.Element.ICE.Sink do
     state = %{
       cnode: cnode
     }
+    {:ok, state}
+  end
+
+  @impl true
+  def handle_other(:get_local_credentials, _context, %{cnode: cnode} = state) do
+    {:ok, credentials} = Unifex.CNode.call(cnode, :get_local_credentials)
+    {{:ok, notify: {:local_credentials, credentials}}, state}
+  end
+
+  @impl true
+  def handle_other({:set_remote_credentials, credentials}, _context, %{cnode: cnode} = state) do
+    :ok = Unifex.CNode.call(cnode, :set_remote_credentials, [credentials])
     {:ok, state}
   end
 
