@@ -4,36 +4,44 @@ defmodule Membrane.Element.ICE.Sink do
   require Unifex.CNode
 
   def_input_pad :input,
-                availability: :on_request,
-                caps: :any,
-                mode: :pull,
-                demand_unit: :buffers
+    availability: :on_request,
+    caps: :any,
+    mode: :pull,
+    demand_unit: :buffers
 
   @impl true
   def handle_init(_options) do
     {:ok, cnode} = Unifex.CNode.start_link(:native)
     :ok = Unifex.CNode.call(cnode, :init)
+
     state = %{
       cnode: cnode
     }
+
     {:ok, state}
   end
 
   @impl true
-  def handle_other(:get_local_credentials, _context, %{cnode: cnode} = state) do
-    {:ok, credentials} = Unifex.CNode.call(cnode, :get_local_credentials)
+  def handle_other({:add_stream, n_components}, _context, %{cnode: cnode} = state) do
+    {:ok, stream_id} = Unifex.CNode.call(cnode, :add_stream, [n_components])
+    {{:ok, notify: {:stream_id, stream_id}}, state}
+  end
+
+  @impl true
+  def handle_other({:get_local_credentials, stream_id}, _context, %{cnode: cnode} = state) do
+    {:ok, credentials} = Unifex.CNode.call(cnode, :get_local_credentials, [stream_id])
     {{:ok, notify: {:local_credentials, credentials}}, state}
   end
 
   @impl true
-  def handle_other({:set_remote_credentials, credentials}, _context, %{cnode: cnode} = state) do
-    :ok = Unifex.CNode.call(cnode, :set_remote_credentials, [credentials])
+  def handle_other({:set_remote_credentials, credentials, stream_id}, _context, %{cnode: cnode} = state) do
+    :ok = Unifex.CNode.call(cnode, :set_remote_credentials, [credentials, stream_id])
     {:ok, state}
   end
 
   @impl true
-  def handle_other(:gather_candidates, _context, %{cnode: cnode} = state) do
-    Unifex.CNode.call(cnode, :gather_candidates)
+  def handle_other({:gather_candidates, stream_id}, _context, %{cnode: cnode} = state) do
+    Unifex.CNode.call(cnode, :gather_candidates, [stream_id])
     {:ok, state}
   end
 
@@ -48,8 +56,8 @@ defmodule Membrane.Element.ICE.Sink do
   end
 
   @impl true
-  def handle_other({:set_remote_candidates, candidates}, _context, %{cnode: cnode} = state) do
-    Unifex.CNode.call(cnode, :set_remote_candidates, [candidates])
+  def handle_other({:set_remote_candidates, candidates, stream_id, component_id}, _context, %{cnode: cnode} = state) do
+    Unifex.CNode.call(cnode, :set_remote_candidates, [candidates, stream_id, component_id])
     {:ok, state}
   end
 end

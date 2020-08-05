@@ -8,22 +8,28 @@ defmodule Example.Pipeline do
     }
 
     spec = %ParentSpec{
-      children: children,
+      children: children
     }
 
     {{:ok, spec: spec}, %{}}
   end
 
   @impl true
+  def handle_notification({:stream_id, stream_id}, from, state) do
+    IO.inspect("pipeline got notification #{inspect(stream_id)} from #{from} ")
+    {{:ok, forward: {:sink, {:gather_candidates, stream_id}}}, state}
+  end
+
+  @impl true
   def handle_notification({:local_credentials, credentials}, from, state) do
     IO.inspect("pipeline got notification #{inspect(credentials)} from #{from} ")
-    {{:ok, forward: {:sink, {:set_remote_credentials, credentials}}}, state}
+    {{:ok, forward: {:sink, {:set_remote_credentials, credentials, 1}}}, state}
   end
 
   @impl true
   def handle_notification({:new_candidate_full, candidates}, from, state) do
     IO.inspect("pipeline got notification #{inspect(candidates)} from #{from} ")
-    {{:ok, forward: {:sink, {:set_remote_candidates, candidates}}}, state}
+    {{:ok, forward: {:sink, {:set_remote_candidates, candidates, 1, 1}}}, state}
   end
 
   @impl true
@@ -34,7 +40,7 @@ defmodule Example.Pipeline do
 
   @impl true
   def handle_stopped_to_prepared(state) do
-    {{:ok, forward: {:sink, :get_local_credentials}}, state}
+    n_components = 1
+    {{:ok, forward: {:sink, {:add_stream, n_components}}}, state}
   end
-
 end

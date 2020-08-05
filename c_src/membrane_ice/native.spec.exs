@@ -6,15 +6,22 @@ state_type "State"
 
 spec init() :: {:ok :: label, state}
 
-spec gather_candidates(state) :: {:ok :: label, state}
+spec add_stream(state, n_components :: unsigned) :: {:ok :: label, stream :: unsigned}
+       | {:error :: label, :failed_to_add_stream :: label}
+       | {:error :: label, :failed_to_attach_recv :: label}
 
-spec get_local_credentials(state) :: {:ok :: label, credentials :: string}
+spec remove_stream(state, stream_id :: unsigned) :: {:ok :: label}
+
+spec gather_candidates(state, stream_id :: unsigned) :: {:ok :: label, state}
+
+spec get_local_credentials(state, stream_id :: unsigned) :: {:ok :: label, credentials :: string}
        | {:error :: label, :failed_to_get_credentials :: label}
 
-spec set_remote_credentials(state, credentials :: string) :: {:ok :: label, state}
+spec set_remote_credentials(state, credentials :: string, stream_id :: unsigned) :: {:ok :: label, state}
        | {:error :: label, :failed_to_set_credentials :: label}
 
-spec set_remote_candidates(state, candidates :: string) :: {:ok :: label, state}
+spec set_remote_candidates(state, candidates :: string, stream_id :: unsigned, component_id :: unsigned) ::
+       {:ok :: label, state}
        | {:error :: label, :failed_to_parse_sdp_string :: label}
        | {:error :: label, :failed_to_set :: label}
 
