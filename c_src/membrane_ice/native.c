@@ -186,6 +186,15 @@ UNIFEX_TERM set_remote_candidates(UnifexEnv *env, State *state,
   return set_remote_candidates_result_ok(env, state);
 }
 
+UNIFEX_TERM send_payload(UnifexEnv *env, State *state, unsigned int stream_id, unsigned int component_id, UnifexPayload *payload) {
+  gchar *data = (gchar *) payload;
+  ssize_t len = strlen(data);
+  if(nice_agent_send(state->agent, stream_id, component_id, len, data) < 0) {
+    return send_payload_result_error_failed_to_send(env);
+  }
+  return send_payload_result_ok(env, state);
+}
+
 void handle_destroy_state(UnifexEnv *env, State *state) {
   UNIFEX_UNUSED(env);
   if (state->gloop) {

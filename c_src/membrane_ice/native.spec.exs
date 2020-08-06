@@ -26,6 +26,9 @@ spec set_remote_candidates(state, candidates :: string, stream_id :: unsigned, c
        | {:error :: label, :failed_to_parse_sdp_string :: label}
        | {:error :: label, :failed_to_set :: label}
 
+spec send_payload(state, stream_id :: unsigned, component_id :: unsigned, data :: payload) :: {:ok :: label, state}
+       | {:error :: label, :failed_to_send :: label}
+
 sends {:new_candidate_full :: label, candidate :: string}
 sends {:candidate_gathering_done :: label}
 sends {:new_selected_pair :: label, stream_id :: unsigned, component_id :: unsigned, lfoundation :: string, rfoundation :: string}
