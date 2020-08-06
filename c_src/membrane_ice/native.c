@@ -20,8 +20,6 @@ static gboolean attach_recv(UnifexState *, guint, guint);
 static GMainLoop *gloop;
 static UnifexEnv *env;
 
-// TODO handle errors
-
 UNIFEX_TERM init(UnifexEnv *envl) {
   State *state = unifex_alloc_state(envl);
   state->gloop = g_main_loop_new(NULL, FALSE);
@@ -42,8 +40,10 @@ UNIFEX_TERM init(UnifexEnv *envl) {
   g_signal_connect(G_OBJECT(agent), "new-selected-pair",
                    G_CALLBACK(cb_new_selected_pair), NULL);
 
-  pthread_t tid =
-      pthread_create(&tid, NULL, main_loop_thread_func, (void *)state->gloop);
+  pthread_t tid;
+  if(pthread_create(&tid, NULL, main_loop_thread_func, (void *)state->gloop) != 0) {
+    return unifex_raise(env, "failed to create main loop thread");
+  }
   state->gloop_tid = tid;
 
   env = envl;
@@ -63,6 +63,7 @@ static void cb_new_candidate_full(NiceAgent *agent, NiceCandidate *candidate,
   gchar *candidate_sdp_str =
       nice_agent_generate_local_candidate_sdp(agent, candidate);
   send_new_candidate_full(env, *env->reply_to, 0, candidate_sdp_str);
+  g_free(candidate_sdp_str);
 }
 
 static void cb_candidate_gathering_done(NiceAgent *agent, guint stream_id,
@@ -71,7 +72,6 @@ static void cb_candidate_gathering_done(NiceAgent *agent, guint stream_id,
   UNIFEX_UNUSED(stream_id);
   UNIFEX_UNUSED(user_data);
   send_candidate_gathering_done(env, *env->reply_to, 0);
-  g_main_loop_quit(gloop);
 }
 
 static void cb_component_state_changed(NiceAgent *agent, guint stream_id,
@@ -123,9 +123,8 @@ UNIFEX_TERM add_stream(UnifexEnv *env, UnifexState *state,
 
 static gboolean attach_recv(UnifexState *state, guint stream_id, guint n_components) {
   for (guint i = 1; i <= n_components; i++) {
-    if (!nice_agent_attach_recv(state->agent, stream_id, i,
-                                g_main_loop_get_context(state->gloop), cb_recv,
-                                NULL)) {
+    GMainContext *ctx = g_main_loop_get_context(state->gloop);
+    if (!nice_agent_attach_recv(state->agent, stream_id, i, ctx, cb_recv, NULL)) {
       return FALSE;
     }
   }
@@ -140,19 +139,22 @@ UNIFEX_TERM remove_stream(UnifexEnv *env, UnifexState *state, unsigned int strea
 UNIFEX_TERM gather_candidates(UnifexEnv *_env, State *state, unsigned int stream_id) {
   UNIFEX_UNUSED(_env);
   g_networking_init();
-  nice_agent_gather_candidates(state->agent, stream_id);
+  if(!nice_agent_gather_candidates(state->agent, stream_id)) {
+    gather_candidates_result_error_invalid_stream_or_allocation(env);
+  }
   return gather_candidates_result_ok(env, state);
 }
 
 UNIFEX_TERM get_local_credentials(UnifexEnv *env, State *state, unsigned int stream_id) {
   gchar *ufrag = NULL;
   gchar *pwd = NULL;
-  if (!nice_agent_get_local_credentials(state->agent, stream_id, &ufrag,
-                                        &pwd)) {
+  if (!nice_agent_get_local_credentials(state->agent, stream_id, &ufrag, &pwd)) {
     return get_local_credentials_result_error_failed_to_get_credentials(env);
   }
   ufrag = strcat(ufrag, " ");
   gchar *credentials = strcat(ufrag, pwd);
+  g_free(ufrag);
+  g_free(pwd);
   return get_local_credentials_result_ok(env, credentials);
 }
 
@@ -181,8 +183,7 @@ UNIFEX_TERM set_remote_candidates(UnifexEnv *env, State *state,
   }
   GSList *cands = NULL;
   cands = g_slist_append(cands, candidate);
-  if (nice_agent_set_remote_candidates(state->agent, stream_id, component_id,
-                                       cands) < 0) {
+  if (nice_agent_set_remote_candidates(state->agent, stream_id, component_id, cands) < 0) {
     return set_remote_candidates_result_error_failed_to_set(env);
   }
   return set_remote_candidates_result_ok(env, state);
