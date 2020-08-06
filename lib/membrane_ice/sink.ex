@@ -7,6 +7,4 @@ defmodule Membrane.Element.ICE.Sink do
     caps: :any,
     mode: :pull,
     demand_unit: :buffers
-
-
 end

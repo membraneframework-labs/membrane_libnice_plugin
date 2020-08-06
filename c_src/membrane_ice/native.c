@@ -88,11 +88,8 @@ static void cb_new_selected_pair(NiceAgent *agent, guint stream_id,
                                  guint component_id, gchar *lfoundation,
                                  gchar *rfoundation, gpointer user_data) {
   UNIFEX_UNUSED(agent);
-  UNIFEX_UNUSED(stream_id);
-  UNIFEX_UNUSED(component_id);
-  UNIFEX_UNUSED(lfoundation);
-  UNIFEX_UNUSED(rfoundation);
   UNIFEX_UNUSED(user_data);
+  send_new_selected_pair(env, *env->reply_to, 0, stream_id, component_id, lfoundation, rfoundation);
 }
 
 static void cb_recv(NiceAgent *agent, guint stream_id, guint component_id,

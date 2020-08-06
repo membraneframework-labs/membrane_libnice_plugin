@@ -28,3 +28,4 @@ spec set_remote_candidates(state, candidates :: string, stream_id :: unsigned, c
 
 sends {:new_candidate_full :: label, candidate :: string}
 sends {:candidate_gathering_done :: label}
+sends {:new_selected_pair :: label, stream_id :: unsigned, component_id :: unsigned, lfoundation :: string, rfoundation :: string}

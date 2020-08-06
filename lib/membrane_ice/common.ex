@@ -10,10 +10,19 @@ defmodule Membrane.Element.ICE.Common do
         :ok = Unifex.CNode.call(cnode, :init)
 
         state = %{
-          cnode: cnode
+          cnode: cnode,
+          connected: false
         }
 
         {:ok, state}
+      end
+
+      @impl true
+      def handle_pad_added(pad, context, state) do
+        case state.connected do
+          true -> {:ok, state}
+          false -> {{:ok, notify: :connection_not_established_yet}, state}
+        end
       end
 
       @impl true
@@ -54,6 +63,12 @@ defmodule Membrane.Element.ICE.Common do
       def handle_other({:set_remote_candidates, candidates, stream_id, component_id}, _context, %{cnode: cnode} = state) do
         Unifex.CNode.call(cnode, :set_remote_candidates, [candidates, stream_id, component_id])
         {:ok, state}
+      end
+
+      @impl true
+      def handle_other({:new_selected_pair, _stream_id, _component_id, _lfoundation, _rfoundation} = msg, _context, %{cnode: cnode} = state) do
+        state = %{state | connected: true}
+        {{:ok, notify: msg}, state}
       end
     end
   end
