@@ -63,7 +63,7 @@ static void cb_new_candidate_full(NiceAgent *agent, NiceCandidate *candidate,
   gchar *candidate_sdp_str =
       nice_agent_generate_local_candidate_sdp(agent, candidate);
   send_new_candidate_full(env, *env->reply_to, 0, candidate_sdp_str);
-  g_free(candidate_sdp_str);
+//  g_free(candidate_sdp_str);
 }
 
 static void cb_candidate_gathering_done(NiceAgent *agent, guint stream_id,
@@ -143,8 +143,12 @@ UNIFEX_TERM get_local_credentials(UnifexEnv *env, State *state, unsigned int str
   if (!nice_agent_get_local_credentials(state->agent, stream_id, &ufrag, &pwd)) {
     return get_local_credentials_result_error_failed_to_get_credentials(env);
   }
-  ufrag = strcat(ufrag, " ");
-  gchar *credentials = strcat(ufrag, pwd);
+  const size_t lenufrag = strlen(ufrag);
+  const size_t lenpwd = strlen(pwd);
+  char *credentials = malloc(lenufrag + lenpwd + 2); // null terminator and space
+  memcpy(credentials, ufrag, lenufrag);
+  memcpy(credentials + lenufrag, " ", 1);
+  memcpy(credentials + lenufrag + 1, pwd, lenpwd + 1);
   g_free(ufrag);
   g_free(pwd);
   return get_local_credentials_result_ok(env, credentials);

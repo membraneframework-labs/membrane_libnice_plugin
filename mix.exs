@@ -40,9 +40,13 @@ defmodule Membrane.ICE.Mixfile do
     [
       {:membrane_core, "~> 0.5.0"},
       {:unifex,
-       git: "https://github.com/membraneframework/unifex.git", branch: "master", override: true},
+       git: "https://github.com/membraneframework/unifex.git",
+       branch: "implement-cnode-string",
+       override: true},
       {:ex_doc, "~> 0.22", only: :dev, runtime: false},
-      {:dialyxir, "~> 1.0.0", only: :dev, runtime: false}
+      {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
+      {:membrane_element_hackney, "~> 0.2"},
+      {:membrane_element_file, "~> 0.2"}
     ]
   end
 

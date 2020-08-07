@@ -1,5 +1,4 @@
 defmodule Membrane.Element.ICE.Common do
-
   defmacro __using__(_options) do
     quote location: :keep do
       require Unifex.CNode
@@ -10,7 +9,7 @@ defmodule Membrane.Element.ICE.Common do
         :ok = Unifex.CNode.call(cnode, :init)
 
         state = %{
-          cnode: cnode,
+          cnode: cnode
         }
 
         {:ok, state}
@@ -29,7 +28,11 @@ defmodule Membrane.Element.ICE.Common do
       end
 
       @impl true
-      def handle_other({:set_remote_credentials, credentials, stream_id}, _context, %{cnode: cnode} = state) do
+      def handle_other(
+            {:set_remote_credentials, credentials, stream_id},
+            _context,
+            %{cnode: cnode} = state
+          ) do
         :ok = Unifex.CNode.call(cnode, :set_remote_credentials, [credentials, stream_id])
         {:ok, state}
       end
@@ -51,7 +54,11 @@ defmodule Membrane.Element.ICE.Common do
       end
 
       @impl true
-      def handle_other({:set_remote_candidate, candidates, stream_id, component_id}, _context, %{cnode: cnode} = state) do
+      def handle_other(
+            {:set_remote_candidate, candidates, stream_id, component_id},
+            _context,
+            %{cnode: cnode} = state
+          ) do
         Unifex.CNode.call(cnode, :set_remote_candidate, [candidates, stream_id, component_id])
         {:ok, state}
       end
