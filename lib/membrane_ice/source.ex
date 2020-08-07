@@ -5,9 +5,14 @@ defmodule Membrane.Element.ICE.Source do
   alias Membrane.Buffer
 
   def_output_pad :output,
-    availability: :on_request,
+    availability: :always,
     caps: :any,
     mode: :push
+
+  @impl true
+  def handle_other({:new_selected_pair, _stream_id, _component_id, _lfoundation, _rfoundation} = msg, _context, state) do
+    {{:ok, notify: msg}, state}
+  end
 
   @impl true
   def handle_other({:ice_payload, stream_id, component_id, payload}, %{playback_state: :playing}, state) do

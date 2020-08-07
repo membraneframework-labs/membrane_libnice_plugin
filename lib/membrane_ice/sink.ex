@@ -5,13 +5,15 @@ defmodule Membrane.Element.ICE.Sink do
   alias Membrane.Buffer
 
   def_input_pad :input,
-    availability: :on_request,
+    availability: :always,
     caps: :any,
     mode: :pull,
     demand_unit: :buffers
 
-  def handle_prepared_to_playing(_context, state) do
-    {{:ok, demand: :input}, state}
+  @impl true
+  def handle_other({:new_selected_pair, _stream_id, _component_id, _lfoundation, _rfoundation} = msg, _context, state) do
+    actions = [notify: msg, demand: :input]
+    {{:ok, actions}, state}
   end
 
   def handle_write(:input, %Buffer{payload: payload, metadata: metadata}, _context, %{cnode: cnode} = state) do
