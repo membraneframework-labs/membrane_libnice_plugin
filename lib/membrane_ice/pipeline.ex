@@ -29,7 +29,7 @@ defmodule Example.Pipeline do
   @impl true
   def handle_notification({:new_candidate_full, candidates}, from, state) do
     IO.inspect("pipeline got notification #{inspect(candidates)} from #{from} ")
-    {{:ok, forward: {:sink, {:set_remote_candidates, candidates, 1, 1}}}, state}
+    {{:ok, forward: {:sink, {:set_remote_candidate, candidates, 1, 1}}}, state}
   end
 
   @impl true

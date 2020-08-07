@@ -96,6 +96,7 @@ static void cb_recv(NiceAgent *agent, guint stream_id, guint component_id,
                     guint len, gchar *buf, gpointer user_data) {
   UNIFEX_UNUSED(agent);
   UNIFEX_UNUSED(user_data);
+  UNIFEX_UNUSED(len);
   UnifexPayload *payload =  (UnifexPayload *) buf;
   send_ice_payload(env, *env->reply_to, 0, stream_id, component_id, payload);
 }
@@ -165,19 +166,18 @@ static void parse_credentials(char *credentials, char **ufrag, char **pwd) {
   *pwd = strtok(NULL, " ");
 }
 
-UNIFEX_TERM set_remote_candidates(UnifexEnv *env, State *state,
-                                  char *candidates, unsigned int stream_id, unsigned int component_id) {
-  NiceCandidate *candidate = nice_agent_parse_remote_candidate_sdp(
-      state->agent, stream_id, candidates);
-  if (candidate == NULL) {
-    return set_remote_candidates_result_error_failed_to_parse_sdp_string(env);
+UNIFEX_TERM set_remote_candidate(UnifexEnv *env, State *state,
+                                  char *candidate, unsigned int stream_id, unsigned int component_id) {
+  NiceCandidate *cand = nice_agent_parse_remote_candidate_sdp(state->agent, stream_id, candidate);
+  if (cand == NULL) {
+    return set_remote_candidate_result_error_failed_to_parse_sdp_string(env);
   }
   GSList *cands = NULL;
-  cands = g_slist_append(cands, candidate);
+  cands = g_slist_append(cands, cand);
   if (nice_agent_set_remote_candidates(state->agent, stream_id, component_id, cands) < 0) {
-    return set_remote_candidates_result_error_failed_to_set(env);
+    return set_remote_candidate_result_error_failed_to_set(env);
   }
-  return set_remote_candidates_result_ok(env, state);
+  return set_remote_candidate_result_ok(env, state);
 }
 
 UNIFEX_TERM send_payload(UnifexEnv *env, State *state, unsigned int stream_id, unsigned int component_id, UnifexPayload *payload) {
@@ -190,6 +190,7 @@ UNIFEX_TERM send_payload(UnifexEnv *env, State *state, unsigned int stream_id, u
 }
 
 void handle_destroy_state(UnifexEnv *env, State *state) {
+  // TODO do it properly
   UNIFEX_UNUSED(env);
   if (state->gloop) {
     g_main_loop_unref(state->gloop);

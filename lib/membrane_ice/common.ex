@@ -60,8 +60,8 @@ defmodule Membrane.Element.ICE.Common do
       end
 
       @impl true
-      def handle_other({:set_remote_candidates, candidates, stream_id, component_id}, _context, %{cnode: cnode} = state) do
-        Unifex.CNode.call(cnode, :set_remote_candidates, [candidates, stream_id, component_id])
+      def handle_other({:set_remote_candidate, candidates, stream_id, component_id}, _context, %{cnode: cnode} = state) do
+        Unifex.CNode.call(cnode, :set_remote_candidate, [candidates, stream_id, component_id])
         {:ok, state}
       end
 

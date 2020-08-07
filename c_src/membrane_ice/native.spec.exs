@@ -21,7 +21,7 @@ spec get_local_credentials(state, stream_id :: unsigned) :: {:ok :: label, crede
 spec set_remote_credentials(state, credentials :: string, stream_id :: unsigned) :: {:ok :: label, state}
        | {:error :: label, :failed_to_set_credentials :: label}
 
-spec set_remote_candidates(state, candidates :: string, stream_id :: unsigned, component_id :: unsigned) ::
+spec set_remote_candidate(state, candidate :: string, stream_id :: unsigned, component_id :: unsigned) ::
        {:ok :: label, state}
        | {:error :: label, :failed_to_parse_sdp_string :: label}
        | {:error :: label, :failed_to_set :: label}
