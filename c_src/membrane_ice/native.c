@@ -95,15 +95,9 @@ static void cb_new_selected_pair(NiceAgent *agent, guint stream_id,
 static void cb_recv(NiceAgent *agent, guint stream_id, guint component_id,
                     guint len, gchar *buf, gpointer user_data) {
   UNIFEX_UNUSED(agent);
-  UNIFEX_UNUSED(stream_id);
-  UNIFEX_UNUSED(component_id);
-  UNIFEX_UNUSED(len);
-  UNIFEX_UNUSED(buf);
   UNIFEX_UNUSED(user_data);
-  if (len == 1 && buf[0] == '\0')
-    g_main_loop_quit(gloop);
-  printf("%.*s", len, buf);
-  fflush(stdout);
+  UnifexPayload *payload =  (UnifexPayload *) buf;
+  send_ice_payload(env, *env->reply_to, 0, stream_id, component_id, payload);
 }
 
 UNIFEX_TERM add_stream(UnifexEnv *env, UnifexState *state,
