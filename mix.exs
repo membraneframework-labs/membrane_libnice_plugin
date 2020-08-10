@@ -44,9 +44,7 @@ defmodule Membrane.ICE.Mixfile do
        branch: "implement-cnode-string",
        override: true},
       {:ex_doc, "~> 0.22", only: :dev, runtime: false},
-      {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
-      {:membrane_element_hackney, "~> 0.2"},
-      {:membrane_element_file, "~> 0.2"}
+      {:dialyxir, "~> 1.0.0", only: :dev, runtime: false}
     ]
   end
 

@@ -16,8 +16,6 @@ defmodule Membrane.Element.ICE.Sink do
         _context,
         state
       ) do
-    #    actions = [notify: msg, demand: :input]
-    IO.inspect("new_selected_pair")
     {{:ok, demand: :input}, state}
   end
 
@@ -27,9 +25,8 @@ defmodule Membrane.Element.ICE.Sink do
         _context,
         %{cnode: cnode} = state
       ) do
-    # TODO don't hardcode this
-    stream_id = Map.get(metadata, :stream_id, 1)
-    component_id = Map.get(metadata, :component_id, 1)
+    stream_id = Map.get(metadata, :stream_id, nil)
+    component_id = Map.get(metadata, :component_id, nil)
 
     if !stream_id || !component_id do
       {{:error, :no_stream_or_component_id}, state}
