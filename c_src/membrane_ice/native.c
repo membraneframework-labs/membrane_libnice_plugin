@@ -16,6 +16,8 @@ static void cb_recv(NiceAgent *, guint, guint, guint, gchar *, gpointer);
 static void *main_loop_thread_func(void *);
 static void parse_credentials(char *, char **, char **);
 static gboolean attach_recv(UnifexState *, guint, guint);
+static char *serialize(UnifexPayload *payload, size_t size);
+static UnifexPayload *deserialize(char *data);
 
 static GMainLoop *gloop;
 static UnifexEnv *env;
@@ -97,7 +99,7 @@ static void cb_recv(NiceAgent *agent, guint stream_id, guint component_id,
   UNIFEX_UNUSED(agent);
   UNIFEX_UNUSED(user_data);
   UNIFEX_UNUSED(len);
-  UnifexPayload *payload =  (UnifexPayload *) buf;
+  UnifexPayload *payload =  deserialize(buf);
   send_ice_payload(env, *env->reply_to, 0, stream_id, component_id, payload);
 }
 
@@ -185,12 +187,41 @@ UNIFEX_TERM set_remote_candidate(UnifexEnv *env, State *state,
 }
 
 UNIFEX_TERM send_payload(UnifexEnv *env, State *state, unsigned int stream_id, unsigned int component_id, UnifexPayload *payload) {
-  gchar *data = (gchar *) payload;
-  ssize_t len = strlen(data);
-  if(nice_agent_send(state->agent, stream_id, component_id, len, data) < 0) {
+  size_t size = payload->size + sizeof(int) + sizeof(UnifexPayloadType) + sizeof(int);
+  char *data = serialize(payload, size);
+  if(nice_agent_send(state->agent, stream_id, component_id, size, data) < 0) {
     return send_payload_result_error_failed_to_send(env);
   }
   return send_payload_result_ok(env, state);
+}
+
+static char *serialize(UnifexPayload *payload, size_t size) {
+  char *data = malloc(size);
+  memcpy(data, &payload->size, sizeof(int));
+  memcpy(data + sizeof(int), payload->data, payload->size);
+  memcpy(data + payload->size + sizeof(int), &payload->type, sizeof(UnifexPayloadType));
+  memcpy(data + payload->size + sizeof(int) + sizeof(UnifexPayloadType), &payload->owned, sizeof(int));
+  return data;
+}
+
+static UnifexPayload *deserialize(char *data) {
+  int payload_data_size;
+  unsigned char *payload_data;
+  UnifexPayloadType type;
+  int owned;
+
+  memcpy(&payload_data_size, data, sizeof(int));
+  payload_data = malloc(payload_data_size);
+  memcpy(payload_data, data + sizeof(int), payload_data_size);
+  memcpy(&type, data + sizeof(int) + payload_data_size, sizeof(UnifexPayloadType));
+  memcpy(&owned, data + sizeof(int) + payload_data_size + sizeof(UnifexPayloadType), sizeof(int));
+
+  UnifexPayload *payload = unifex_payload_alloc(env, type, payload_data_size);
+  payload->data = payload_data;
+  payload->size = payload_data_size;
+  payload->type = type;
+  payload->owned = owned;
+  return payload;
 }
 
 void handle_destroy_state(UnifexEnv *env, State *state) {
