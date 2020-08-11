@@ -12,14 +12,14 @@ spec add_stream(state, n_components :: unsigned) :: {:ok :: label, stream :: uns
 
 spec remove_stream(state, stream_id :: unsigned) :: {:ok :: label}
 
-spec gather_candidates(state, stream_id :: unsigned) :: {:ok :: label, state}
-       | {:error :: label, :invalid_stream_or_allocation :: label}
-
 spec get_local_credentials(state, stream_id :: unsigned) :: {:ok :: label, credentials :: string}
        | {:error :: label, :failed_to_get_credentials :: label}
 
 spec set_remote_credentials(state, credentials :: string, stream_id :: unsigned) :: {:ok :: label, state}
        | {:error :: label, :failed_to_set_credentials :: label}
+
+spec gather_candidates(state, stream_id :: unsigned) :: {:ok :: label, state}
+       | {:error :: label, :invalid_stream_or_allocation :: label}
 
 spec set_remote_candidate(state, candidate :: string, stream_id :: unsigned, component_id :: unsigned) ::
        {:ok :: label, state}

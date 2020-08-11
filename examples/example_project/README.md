@@ -1,13 +1,16 @@
 # Example
 
-This example shows how to use `membrane_ice_plugin`.
-You will establish connection between two peers and send simple video file.
+In this example we will establish connection between two peers using `membrane_ice_plugin` and
+send an example video file.
+Beside the sender and receiver code we will need something we call `AddressProvider`.
+It is a simple module that extends each message with metadata indicating where this particular
+message should be sent.
 
 ## Requirements
 
 To run this example you will need a test video named `test-video.h264` stored in `~/Videos/`.
 You can change this in `sender.ex` file.
-Example video is availabe [here](https://membraneframework.github.io/static/video-samples/test-video.h264).
+Example video is available [here](https://membraneframework.github.io/static/video-samples/test-video.h264).
 
 ## Usage
 

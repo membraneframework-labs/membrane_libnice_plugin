@@ -7,11 +7,9 @@
 #include <unistd.h>
 
 static void cb_candidate_gathering_done(NiceAgent *, guint, gpointer);
-static void cb_component_state_changed(NiceAgent *, guint, guint, guint,
-                                       gpointer);
+static void cb_component_state_changed(NiceAgent *, guint, guint, guint, gpointer);
 static void cb_new_candidate_full(NiceAgent *, NiceCandidate *, gpointer);
-static void cb_new_selected_pair(NiceAgent *, guint, guint, gchar *, gchar *,
-                                 gpointer);
+static void cb_new_selected_pair(NiceAgent *, guint, guint, gchar *, gchar *, gpointer);
 static void cb_recv(NiceAgent *, guint, guint, guint, gchar *, gpointer);
 static void *main_loop_thread_func(void *);
 static void parse_credentials(char *, char **, char **);
@@ -29,6 +27,7 @@ UNIFEX_TERM init(UnifexEnv *envl) {
                                 NICE_COMPATIBILITY_RFC5245);
   gloop = state->gloop;
   NiceAgent *agent = state->agent;
+  // TODO pass this by function params after implementing lists and strings for CNodes in Unifex
   g_object_set(agent, "stun-server", "64.233.161.127", NULL);
   g_object_set(agent, "stun-server-port", 19302, NULL);
   g_object_set(agent, "controlling-mode", FALSE, NULL);
@@ -65,7 +64,7 @@ static void cb_new_candidate_full(NiceAgent *agent, NiceCandidate *candidate,
   gchar *candidate_sdp_str =
       nice_agent_generate_local_candidate_sdp(agent, candidate);
   send_new_candidate_full(env, *env->reply_to, 0, candidate_sdp_str);
-//  g_free(candidate_sdp_str);
+  g_free(candidate_sdp_str);
 }
 
 static void cb_candidate_gathering_done(NiceAgent *agent, guint stream_id,
@@ -99,7 +98,7 @@ static void cb_recv(NiceAgent *agent, guint stream_id, guint component_id,
   UNIFEX_UNUSED(agent);
   UNIFEX_UNUSED(user_data);
   UNIFEX_UNUSED(len);
-  UnifexPayload *payload =  deserialize(buf);
+  UnifexPayload *payload = deserialize(buf);
   send_ice_payload(env, *env->reply_to, 0, stream_id, component_id, payload);
 }
 

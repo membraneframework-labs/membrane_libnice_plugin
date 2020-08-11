@@ -12,7 +12,7 @@ defmodule Membrane.Element.ICE.Sink do
 
   @impl true
   def handle_other(
-        {:new_selected_pair, _stream_id, _component_id, _lfoundation, _rfoundation} = msg,
+        {:new_selected_pair, _stream_id, _component_id, _lfoundation, _rfoundation},
         _context,
         state
       ) do
