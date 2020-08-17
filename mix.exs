@@ -2,11 +2,11 @@ defmodule Membrane.ICE.Mixfile do
   use Mix.Project
 
   @version "0.1.0"
-  @github_url "https://github.com/membraneframework/membrane_ice"
+  @github_url "https://github.com/membraneframework/membrane_ice_plugin"
 
   def project do
     [
-      app: :membrane_ice,
+      app: :membrane_ice_plugin,
       version: @version,
       elixir: "~> 1.10.4",
       compilers: [:unifex, :bundlex] ++ Mix.compilers(),
@@ -15,12 +15,11 @@ defmodule Membrane.ICE.Mixfile do
       deps: deps(),
 
       # hex
-      description:
-        "Interactive Connectivity Establishment (ICE) implementation for Membrane Multimedia Framework",
+      description: "Membrane Multimedia Framework plugin for ICE",
       package: package(),
 
       # docs
-      name: "Membrane: ICE",
+      name: "Membrane ICE plugin",
       source_url: @github_url,
       homepage_url: "https://membraneframework.org",
       docs: docs()

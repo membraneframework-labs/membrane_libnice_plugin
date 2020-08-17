@@ -1,4 +1,4 @@
-defmodule Membrane.Element.ICE.Common do
+defmodule Membrane.ICE.Common do
   defmacro __using__(_options) do
     quote location: :keep do
       require Unifex.CNode

@@ -24,7 +24,7 @@ defmodule ExampleProject.MixProject do
   defp deps do
     [
       {:membrane_core, git: "https://github.com/membraneframework/membrane_core.git", branch: "master", override: true},
-      {:membrane_ice, path: "../.."},
+      {:membrane_ice_plugin, path: "../.."},
       {:membrane_element_file,
        git: "https://github.com/membraneframework/membrane-element-file", branch: "master"}
     ]

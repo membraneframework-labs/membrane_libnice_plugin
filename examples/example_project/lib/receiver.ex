@@ -8,7 +8,7 @@ defmodule Example.Receiver do
   @impl true
   def handle_init(_) do
     children = %{
-      source: Membrane.Element.ICE.Source,
+      source: Membrane.ICE.Source,
       sink: %File.Sink{
         location: "/tmp/ice-recv.h264"
       }

@@ -1,6 +1,6 @@
-defmodule Membrane.Element.ICE.Sink do
+defmodule Membrane.ICE.Sink do
   use Membrane.Sink
-  use Membrane.Element.ICE.Common
+  use Membrane.ICE.Common
 
   alias Membrane.Buffer
 

@@ -12,7 +12,7 @@ defmodule Example.Sender do
         location: "~/Videos/test-video.h264"
       },
       address_provider: Example.AddressProvider,
-      sink: Membrane.Element.ICE.Sink
+      sink: Membrane.ICE.Sink
     }
 
     links = [
