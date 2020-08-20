@@ -3,18 +3,16 @@ defmodule Example.AddressProvider do
 
   alias Membrane.Buffer
 
-  def_input_pad(:input,
+  def_input_pad :input,
     availability: :always,
     mode: :pull,
     demand_unit: :buffers,
     caps: :any
-  )
 
-  def_output_pad(:output,
+  def_output_pad :output,
     availability: :always,
     mode: :pull,
     caps: :any
-  )
 
   @impl true
   def handle_demand(:output, size, :buffers, _context, state) do
