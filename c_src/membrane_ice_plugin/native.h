@@ -7,6 +7,7 @@
 typedef struct State State;
 
 struct State {
+  UnifexEnv *env;
   GMainLoop *gloop;
   NiceAgent *agent;
   pthread_t gloop_tid;

@@ -15,17 +15,14 @@ static void *main_loop_thread_func(void *);
 static void parse_credentials(char *, char **, char **);
 static gboolean attach_recv(UnifexState *, guint, guint);
 static char *serialize(UnifexPayload *payload, size_t size);
-static UnifexPayload *deserialize(char *data);
+static UnifexPayload *deserialize(UnifexEnv *env, char *data);
 
-static GMainLoop *gloop;
-static UnifexEnv *env;
-
-UNIFEX_TERM init(UnifexEnv *envl) {
-  State *state = unifex_alloc_state(envl);
+UNIFEX_TERM init(UnifexEnv *env) {
+  State *state = unifex_alloc_state(env);
   state->gloop = g_main_loop_new(NULL, FALSE);
   state->agent = nice_agent_new(g_main_loop_get_context(state->gloop),
                                 NICE_COMPATIBILITY_RFC5245);
-  gloop = state->gloop;
+  state->env = env;
   NiceAgent *agent = state->agent;
   // TODO pass this by function params after implementing lists and strings for CNodes in Unifex
   g_object_set(agent, "stun-server", "64.233.161.127", NULL);
@@ -33,21 +30,18 @@ UNIFEX_TERM init(UnifexEnv *envl) {
   g_object_set(agent, "controlling-mode", FALSE, NULL);
 
   g_signal_connect(G_OBJECT(agent), "candidate-gathering-done",
-                   G_CALLBACK(cb_candidate_gathering_done), NULL);
+                   G_CALLBACK(cb_candidate_gathering_done), state);
   g_signal_connect(G_OBJECT(agent), "component-state-changed",
-                   G_CALLBACK(cb_component_state_changed), NULL);
+                   G_CALLBACK(cb_component_state_changed), state);
   g_signal_connect(G_OBJECT(agent), "new-candidate-full",
-                   G_CALLBACK(cb_new_candidate_full), NULL);
+                   G_CALLBACK(cb_new_candidate_full), state);
   g_signal_connect(G_OBJECT(agent), "new-selected-pair",
-                   G_CALLBACK(cb_new_selected_pair), NULL);
+                   G_CALLBACK(cb_new_selected_pair), state);
 
-  pthread_t tid;
-  if(pthread_create(&tid, NULL, main_loop_thread_func, (void *)state->gloop) != 0) {
+  if(pthread_create(&state->gloop_tid, NULL, main_loop_thread_func, (void *)state->gloop) != 0) {
     return unifex_raise(env, "failed to create main loop thread");
   }
-  state->gloop_tid = tid;
 
-  env = envl;
   return init_result_ok(env, state);
 }
 
@@ -60,10 +54,10 @@ static void *main_loop_thread_func(void *user_data) {
 
 static void cb_new_candidate_full(NiceAgent *agent, NiceCandidate *candidate,
                                   gpointer user_data) {
-  UNIFEX_UNUSED(user_data);
+  State *state = (State *)user_data;
   gchar *candidate_sdp_str =
       nice_agent_generate_local_candidate_sdp(agent, candidate);
-  send_new_candidate_full(env, *env->reply_to, 0, candidate_sdp_str);
+  send_new_candidate_full(state->env, *state->env->reply_to, 0, candidate_sdp_str);
   g_free(candidate_sdp_str);
 }
 
@@ -71,19 +65,19 @@ static void cb_candidate_gathering_done(NiceAgent *agent, guint stream_id,
                                         gpointer user_data) {
   UNIFEX_UNUSED(agent);
   UNIFEX_UNUSED(stream_id);
-  UNIFEX_UNUSED(user_data);
-  send_candidate_gathering_done(env, *env->reply_to, 0);
+  State *state = (State *)user_data;
+  send_candidate_gathering_done(state->env, *state->env->reply_to, 0);
 }
 
 static void cb_component_state_changed(NiceAgent *agent, guint stream_id,
-                                       guint component_id, guint state,
+                                       guint component_id, guint component_state,
                                        gpointer user_data) {
   UNIFEX_UNUSED(agent);
-  UNIFEX_UNUSED(user_data);
-  if(state == NICE_COMPONENT_STATE_FAILED) {
-    send_component_state_failed(env, *env->reply_to, 0, stream_id, component_id);
-  } else if(state == NICE_COMPONENT_STATE_READY) {
-    send_component_state_ready(env, *env->reply_to, 0, stream_id, component_id);
+  State *state = (State *)user_data;
+  if(component_state == NICE_COMPONENT_STATE_FAILED) {
+    send_component_state_failed(state->env, *state->env->reply_to, 0, stream_id, component_id);
+  } else if(component_state == NICE_COMPONENT_STATE_READY) {
+    send_component_state_ready(state->env, *state->env->reply_to, 0, stream_id, component_id);
   }
 }
 
@@ -91,17 +85,17 @@ static void cb_new_selected_pair(NiceAgent *agent, guint stream_id,
                                  guint component_id, gchar *lfoundation,
                                  gchar *rfoundation, gpointer user_data) {
   UNIFEX_UNUSED(agent);
-  UNIFEX_UNUSED(user_data);
-  send_new_selected_pair(env, *env->reply_to, 0, stream_id, component_id, lfoundation, rfoundation);
+  State *state = (State *)user_data;
+  send_new_selected_pair(state->env, *state->env->reply_to, 0, stream_id, component_id, lfoundation, rfoundation);
 }
 
 static void cb_recv(NiceAgent *agent, guint stream_id, guint component_id,
                     guint len, gchar *buf, gpointer user_data) {
   UNIFEX_UNUSED(agent);
-  UNIFEX_UNUSED(user_data);
   UNIFEX_UNUSED(len);
-  UnifexPayload *payload = deserialize(buf);
-  send_ice_payload(env, *env->reply_to, 0, stream_id, component_id, payload);
+  State *state = (State *)user_data;
+  UnifexPayload *payload = deserialize(state->env, buf);
+  send_ice_payload(state->env, *state->env->reply_to, 0, stream_id, component_id, payload);
 }
 
 UNIFEX_TERM add_stream(UnifexEnv *env, UnifexState *state,
@@ -131,8 +125,7 @@ UNIFEX_TERM remove_stream(UnifexEnv *env, UnifexState *state, unsigned int strea
   return remove_stream_result_ok(env);
 }
 
-UNIFEX_TERM gather_candidates(UnifexEnv *_env, State *state, unsigned int stream_id) {
-  UNIFEX_UNUSED(_env);
+UNIFEX_TERM gather_candidates(UnifexEnv *env, State *state, unsigned int stream_id) {
   g_networking_init();
   if(!nice_agent_gather_candidates(state->agent, stream_id)) {
     gather_candidates_result_error_invalid_stream_or_allocation(env);
@@ -205,7 +198,7 @@ static char *serialize(UnifexPayload *payload, size_t size) {
   return data;
 }
 
-static UnifexPayload *deserialize(char *data) {
+static UnifexPayload *deserialize(UnifexEnv *env, char *data) {
   int payload_data_size;
   unsigned char *payload_data;
   UnifexPayloadType type;
