@@ -224,8 +224,9 @@ static UnifexPayload *deserialize(char *data) {
 }
 
 void handle_destroy_state(UnifexEnv *env, State *state) {
-  // TODO do it properly
   UNIFEX_UNUSED(env);
+  g_main_loop_quit(state->gloop);
+  pthread_kill(state->gloop_tid, SIGKILL);
   if (state->gloop) {
     g_main_loop_unref(state->gloop);
     state->gloop = NULL;
@@ -234,5 +235,4 @@ void handle_destroy_state(UnifexEnv *env, State *state) {
     g_object_unref(state->agent);
     state->agent = NULL;
   }
-  // TODO flush main loop thread here
 }

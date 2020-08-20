@@ -1,5 +1,6 @@
 #pragma once
 
+#include <signal.h>
 #include <nice/agent.h>
 #include <unifex/unifex.h>
 
