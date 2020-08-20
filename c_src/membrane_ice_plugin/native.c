@@ -79,10 +79,12 @@ static void cb_component_state_changed(NiceAgent *agent, guint stream_id,
                                        guint component_id, guint state,
                                        gpointer user_data) {
   UNIFEX_UNUSED(agent);
-  UNIFEX_UNUSED(stream_id);
-  UNIFEX_UNUSED(component_id);
-  UNIFEX_UNUSED(state);
   UNIFEX_UNUSED(user_data);
+  if(state == NICE_COMPONENT_STATE_FAILED) {
+    send_component_state_failed(env, *env->reply_to, 0, stream_id, component_id);
+  } else if(state == NICE_COMPONENT_STATE_READY) {
+    send_component_state_ready(env, *env->reply_to, 0, stream_id, component_id);
+  }
 }
 
 static void cb_new_selected_pair(NiceAgent *agent, guint stream_id,
