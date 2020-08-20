@@ -1,8 +1,10 @@
 defmodule Membrane.ICE.Sink do
   use Membrane.Sink
-  use Membrane.ICE.Common
+
+  require Unifex.CNode
 
   alias Membrane.Buffer
+  alias Membrane.ICE.Common
 
   def_input_pad :input,
     availability: :always,
@@ -11,12 +13,29 @@ defmodule Membrane.ICE.Sink do
     demand_unit: :buffers
 
   @impl true
+  def handle_init(_options) do
+    {:ok, cnode} = Unifex.CNode.start_link(:native)
+    :ok = Unifex.CNode.call(cnode, :init)
+
+    state = %{
+      cnode: cnode
+    }
+
+    {:ok, state}
+  end
+
+  @impl true
   def handle_other(
         {:new_selected_pair, _stream_id, _component_id, _lfoundation, _rfoundation},
         _context,
         state
       ) do
     {{:ok, demand: :input}, state}
+  end
+
+  @impl true
+  def handle_other(msg, context, state) do
+    Common.handle_ice_message(msg, context, state)
   end
 
   def handle_write(
