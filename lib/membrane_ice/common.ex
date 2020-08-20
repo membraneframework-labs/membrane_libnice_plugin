@@ -1,5 +1,6 @@
 defmodule Membrane.ICE.Common do
   require Unifex.CNode
+  require Membrane.Logger
 
   def handle_ice_message({:add_stream, n_components}, _context, %{cnode: cnode} = state) do
     case Unifex.CNode.call(cnode, :add_stream, [n_components]) do
@@ -44,11 +45,13 @@ defmodule Membrane.ICE.Common do
     end
   end
 
-  def handle_ice_message({:new_candidate_full, _ip} = candidate, _context, state) do
-    {{:ok, notify: candidate}, state}
+  def handle_ice_message({:new_candidate_full, _ip} = msg, _context, state) do
+    Membrane.Logger.debug("#{inspect(msg)}")
+    {{:ok, notify: msg}, state}
   end
 
-  def handle_ice_message({:candidate_gathering_done}, _context, state) do
+  def handle_ice_message({:candidate_gathering_done} = msg, _context, state) do
+    Membrane.Logger.debug("#{inspect(msg)}")
     {{:ok, notify: :gathering_done}, state}
   end
 end

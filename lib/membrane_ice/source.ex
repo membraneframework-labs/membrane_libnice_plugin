@@ -2,6 +2,7 @@ defmodule Membrane.ICE.Source do
   use Membrane.Source
 
   require Unifex.CNode
+  require Membrane.Logger
 
   alias Membrane.Buffer
   alias Membrane.ICE.Common
@@ -29,6 +30,7 @@ defmodule Membrane.ICE.Source do
         _context,
         state
       ) do
+    Membrane.Logger.debug("#{inspect(msg)}")
     {{:ok, notify: msg}, state}
   end
 

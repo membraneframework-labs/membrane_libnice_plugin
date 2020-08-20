@@ -2,6 +2,7 @@ defmodule Membrane.ICE.Sink do
   use Membrane.Sink
 
   require Unifex.CNode
+  require Membrane.Logger
 
   alias Membrane.Buffer
   alias Membrane.ICE.Common
@@ -26,10 +27,11 @@ defmodule Membrane.ICE.Sink do
 
   @impl true
   def handle_other(
-        {:new_selected_pair, _stream_id, _component_id, _lfoundation, _rfoundation},
+        {:new_selected_pair, _stream_id, _component_id, _lfoundation, _rfoundation} = msg,
         _context,
         state
       ) do
+    Membrane.Logger.debug("#{inspect(msg)}")
     {{:ok, demand: :input}, state}
   end
 
