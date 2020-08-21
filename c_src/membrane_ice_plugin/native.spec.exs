@@ -4,7 +4,8 @@ interface CNode
 
 state_type "State"
 
-spec init() :: {:ok :: label, state}
+spec init(stun_servers :: [string], turn_servers :: [string], controlling_mode :: int) ::
+       {:ok :: label, state}
 
 spec add_stream(state, n_components :: unsigned) :: {:ok :: label, stream :: unsigned}
        | {:error :: label, :failed_to_add_stream :: label}

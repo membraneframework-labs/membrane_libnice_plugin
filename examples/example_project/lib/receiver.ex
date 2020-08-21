@@ -8,7 +8,10 @@ defmodule Example.Receiver do
   @impl true
   def handle_init(_) do
     children = %{
-      source: Membrane.ICE.Source,
+      source: %Membrane.ICE.Source{
+        stun_servers: ['64.233.161.127:19302'],
+        controlling_mode: 0
+      },
       sink: %File.Sink{
         location: "/tmp/ice-recv.h264"
       }

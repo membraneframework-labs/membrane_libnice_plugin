@@ -7,15 +7,37 @@ defmodule Membrane.ICE.Source do
   alias Membrane.Buffer
   alias Membrane.ICE.Common
 
+  def_options stun_servers: [
+                type: [:string],
+                default: [],
+                description: "List of stun servers in form of ip:port"
+              ],
+              turn_servers: [
+                type: [:string],
+                default: [],
+                description: "List of turn servers in form of ip:port:proto:username:passwd"
+              ],
+              controlling_mode: [
+                type: :integer,
+                default: 0,
+                description: "0 for FALSE, 1 for TRUE"
+              ]
+
   def_output_pad :output,
     availability: :always,
     caps: :any,
     mode: :push
 
   @impl true
-  def handle_init(_options) do
+  def handle_init(%__MODULE__{} = options) do
+    %__MODULE__{
+      stun_servers: stun_servers,
+      turn_servers: turn_servers,
+      controlling_mode: controlling_mode
+    } = options
+
     {:ok, cnode} = Unifex.CNode.start_link(:native)
-    :ok = Unifex.CNode.call(cnode, :init)
+    :ok = Unifex.CNode.call(cnode, :init, [stun_servers, turn_servers, controlling_mode])
 
     state = %{
       cnode: cnode

@@ -12,7 +12,10 @@ defmodule Example.Sender do
         location: "~/Videos/test-video.h264"
       },
       address_provider: Example.AddressProvider,
-      sink: Membrane.ICE.Sink
+      sink: %Membrane.ICE.Sink{
+        stun_servers: ['64.233.161.127:19302'],
+        controlling_mode: 0
+      }
     }
 
     links = [
