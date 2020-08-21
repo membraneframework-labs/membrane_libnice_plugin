@@ -32,8 +32,11 @@ UNIFEX_TERM init(UnifexEnv *env, char **stun_servers, unsigned int stun_servers_
                  char **turn_servers, unsigned int turn_servers_length, int controlling_mode) {
   State *state = unifex_alloc_state(env);
   state->gloop = g_main_loop_new(NULL, FALSE);
-  state->agent = nice_agent_new(g_main_loop_get_context(state->gloop),
-                                NICE_COMPATIBILITY_RFC5245);
+  state->agent = nice_agent_new_full(g_main_loop_get_context(state->gloop),
+                                NICE_COMPATIBILITY_RFC5245,
+                                NICE_AGENT_OPTION_REGULAR_NOMINATION);
+  // FIXME this option seems not working
+  g_object_set (G_OBJECT (state->agent), "ice-trickle", TRUE, NULL);
   state->env = env;
   NiceAgent *agent = state->agent;
 
@@ -95,7 +98,7 @@ int parse_stun_servers(NiceAgent *agent, char **stun_servers, unsigned int lengt
       return BAD_STUN_FORMAT;
     }
     g_object_set(agent, "stun-server", addr, NULL);
-    g_object_set(agent, "stun-server-port", atoi(addr), NULL);
+    g_object_set(agent, "stun-server-port", atoi(port), NULL);
   }
   return 0;
 }
@@ -209,7 +212,7 @@ UNIFEX_TERM add_stream(UnifexEnv *env, UnifexState *state,
 static gboolean attach_recv(UnifexState *state, guint stream_id, guint n_components) {
   for (guint i = 1; i <= n_components; i++) {
     GMainContext *ctx = g_main_loop_get_context(state->gloop);
-    if (!nice_agent_attach_recv(state->agent, stream_id, i, ctx, cb_recv, NULL)) {
+    if (!nice_agent_attach_recv(state->agent, stream_id, i, ctx, cb_recv, state)) {
       return FALSE;
     }
   }

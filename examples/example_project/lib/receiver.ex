@@ -11,19 +11,11 @@ defmodule Example.Receiver do
       source: %Membrane.ICE.Source{
         stun_servers: ['64.233.161.127:19302'],
         controlling_mode: 0
-      },
-      sink: %File.Sink{
-        location: "/tmp/ice-recv.h264"
       }
     }
 
-    links = [
-      link(:source) |> to(:sink)
-    ]
-
     spec = %ParentSpec{
-      children: children,
-      links: links
+      children: children
     }
 
     {{:ok, spec: spec}, %{}}
@@ -36,39 +28,57 @@ defmodule Example.Receiver do
   end
 
   @impl true
-  def handle_notification({:stream_id, stream_id} = msg, _from, _ctx, state) do
-    Membrane.Logger.debug("#{inspect(msg)}")
+  def handle_notification({:stream_id, stream_id}, _from, _ctx, state) do
     state = Map.put(state, :stream_id, stream_id)
     {{:ok, forward: {:source, {:gather_candidates, stream_id}}}, state}
   end
 
   @impl true
-  def handle_notification({:new_candidate_full, _candidate} = msg, _from, _ctx, state) do
-    Membrane.Logger.debug("#{inspect(msg)}")
+  def handle_notification({:new_candidate_full, _candidate}, _from, _ctx, state) do
     {:ok, state}
   end
 
   @impl true
-  def handle_notification(:gathering_done = msg, _from, _ctx, state) do
-    Membrane.Logger.debug("#{inspect(msg)}")
+  def handle_notification(:gathering_done, _from, _ctx, state) do
     {{:ok, forward: {:source, {:get_local_credentials, state.stream_id}}}, state}
   end
 
   @impl true
-  def handle_notification({:local_credentials, _credentials} = msg, _from, _ctx, state) do
-    Membrane.Logger.debug("#{inspect(msg)}")
+  def handle_notification({:local_credentials, _credentials}, _from, _ctx, state) do
     {:ok, state}
   end
 
   @impl true
-  def handle_other({:set_remote_credentials, remote_credentials, stream_id} = msg, _ctx, state) do
-    Membrane.Logger.debug("#{inspect(msg)}")
+  def handle_notification(
+        {:new_selected_pair, _stream_id, _component_id, _lfoundation, _rfoundation},
+        _from,
+        _ctx,
+        state
+      ) do
+    {:ok, state}
+  end
+
+  @impl true
+  def handle_notification({:component_state_ready, stream_id, component_id}, _from, _ctx, state) do
+    children = %{
+      sink: %File.Sink{
+        location: "/tmp/ice-recv.h264"
+      }
+    }
+
+    pad = Pad.ref(:output, {stream_id, component_id})
+    links = [link(:source) |> via_out(pad) |> to(:sink)]
+    spec = %ParentSpec{children: children, links: links}
+    {{:ok, spec: spec}, state}
+  end
+
+  @impl true
+  def handle_other({:set_remote_credentials, remote_credentials, stream_id}, _ctx, state) do
     {{:ok, forward: {:source, {:set_remote_credentials, remote_credentials, stream_id}}}, state}
   end
 
   @impl true
-  def handle_other({:set_remote_candidate, candidate} = msg, _ctx, state) do
-    Membrane.Logger.debug("#{inspect(msg)}")
+  def handle_other({:set_remote_candidate, candidate}, _ctx, state) do
     {{:ok, forward: {:source, {:set_remote_candidate, candidate, state.stream_id, 1}}}, state}
   end
 end
