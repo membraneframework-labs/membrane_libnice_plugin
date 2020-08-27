@@ -10,11 +10,12 @@ defmodule Membrane.ICE.BundlexProject do
   defp natives(_platform) do
     [
       native: [
-        sources: ["native.c", "_generated/cnode/native.c"],
+        sources: ["native.c", "arg_parser.c"],
         deps: [unifex: :unifex],
         pkg_configs: ["nice"],
         libs: ["pthread"],
-        interface: :cnode
+        interface: :cnode,
+        preprocessor: Unifex
       ]
     ]
   end
