@@ -76,7 +76,7 @@ static void cb_candidate_gathering_done(NiceAgent *agent, guint stream_id,
   UNIFEX_UNUSED(agent);
   UNIFEX_UNUSED(stream_id);
   State *state = (State *)user_data;
-  send_candidate_gathering_done(state->env, *state->env->reply_to, 0);
+  send_candidate_gathering_done(state->env, *state->env->reply_to, 0, stream_id);
 }
 
 static void cb_component_state_changed(NiceAgent *agent, guint stream_id,

@@ -118,10 +118,10 @@ defmodule Membrane.ICE.Common do
     {{:ok, notify: msg}, state}
   end
 
-  def handle_ice_message({:candidate_gathering_done} = msg, _ctx, state) do
+  def handle_ice_message({:candidate_gathering_done, _stream_id} = msg, _ctx, state) do
     Membrane.Logger.debug("#{inspect(msg)}")
 
-    {{:ok, notify: :gathering_done}, state}
+    {{:ok, notify: msg}, state}
   end
 
   def handle_ice_message(

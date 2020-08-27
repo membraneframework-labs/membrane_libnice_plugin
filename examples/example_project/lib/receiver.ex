@@ -39,8 +39,8 @@ defmodule Example.Receiver do
   end
 
   @impl true
-  def handle_notification(:gathering_done, _from, _ctx, state) do
-    {{:ok, forward: {:source, {:get_local_credentials, state.stream_id}}}, state}
+  def handle_notification({:candidate_gathering_done, stream_id}, _from, _ctx, state) do
+    {{:ok, forward: {:source, {:get_local_credentials, stream_id}}}, state}
   end
 
   @impl true
