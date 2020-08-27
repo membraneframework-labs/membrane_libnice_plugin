@@ -1,4 +1,13 @@
 defmodule Membrane.ICE.Sink do
+  @moduledoc """
+  Element that sends buffers (over UDP or TCP) received on different pads to relevant receivers.
+
+  For example if buffer was received on pad {1, 1} the element will send it through component 1
+  on stream 1. The pipeline or bin has to create link to this element after receiving
+  {:component_state_ready, stream_id, component_id} message. Doing it earlier will cause an error
+  because given component is not in the READY state yet.
+  """
+
   use Membrane.Sink
 
   require Unifex.CNode
@@ -70,7 +79,12 @@ defmodule Membrane.ICE.Sink do
         {{:ok, demand: pad}, new_state}
 
       false ->
-        {{:ok, notify: :connection_not_established_yet}, state}
+        Membrane.Logger.error("""
+        Connection for stream: #{stream_id} and component: #{component_id} not established yet.
+        Cannot add pad
+        """)
+
+        {{:error, :connection_not_established_yet}, state}
     end
   end
 
@@ -86,6 +100,8 @@ defmodule Membrane.ICE.Sink do
 
   @impl true
   def handle_other({:component_state_ready, stream_id, component_id} = msg, _ctx, state) do
+    Membrane.Logger.debug("Component #{component_id} in stream #{stream_id} READY")
+
     new_connections = MapSet.put(state.connections, {stream_id, component_id})
     new_state = %State{state | connections: new_connections}
     {{:ok, notify: msg}, new_state}
@@ -102,11 +118,16 @@ defmodule Membrane.ICE.Sink do
         _context,
         %{cnode: cnode} = state
       ) do
-    Membrane.Logger.debug("send payload: #{Membrane.Payload.size(payload)} bytes")
-
     case Unifex.CNode.call(cnode, :send_payload, [stream_id, component_id, payload]) do
-      :ok -> {{:ok, demand: pad}, state}
-      {:error, cause} -> {{:error, cause}, state}
+      :ok ->
+        Membrane.Logger.debug("Sent payload: #{Membrane.Payload.size(payload)} bytes")
+
+        {{:ok, demand: pad}, state}
+
+      {:error, cause} ->
+        Membrane.Logger.warn("Couldn't send payload: #{inspect(cause)}")
+
+        {{:error, cause}, state}
     end
   end
 end

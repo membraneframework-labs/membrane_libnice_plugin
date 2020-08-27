@@ -1,4 +1,13 @@
 defmodule Membrane.ICE.Source do
+  @moduledoc """
+  Element that receives buffers and sends them on relevant pads.
+
+  For example if buffer was received by component 1 on stream 1 the buffer will be passed
+  on pad {1, 1}. The pipeline or bin has to create link to this element after receiving
+  {:component_state_ready, stream_id, component_id} message. Doing it earlier will cause an error
+  because given component is not in the READY state yet.
+  """
+
   use Membrane.Source
 
   require Unifex.CNode
@@ -67,6 +76,11 @@ defmodule Membrane.ICE.Source do
         {:ok, %State{state | pads: new_pads}}
 
       false ->
+        Membrane.Logger.error("""
+        Connection for stream: #{stream_id} and component: #{component_id} not established yet.
+        Cannot add pad
+        """)
+
         {{:ok, notify: :connection_not_established_yet}, state}
     end
   end
@@ -87,13 +101,16 @@ defmodule Membrane.ICE.Source do
         %{playback_state: :playing},
         state
       ) do
-    Membrane.Logger.debug("recv payload: #{Membrane.Payload.size(payload)} bytes")
+    Membrane.Logger.debug("Received payload: #{Membrane.Payload.size(payload)} bytes")
 
     actions =
       case Map.get(state.pads, {stream_id, component_id}) do
         nil ->
-          Membrane.Logger.warn("pad for stream: #{stream_id} and component: #{component_id} not
-          added yet. Probably your component is not in READY state. Ignoring message.")
+          Membrane.Logger.warn("""
+          Pad for stream: #{stream_id} and component: #{component_id} not
+          added yet. Probably your component is not in READY state yet. Ignoring message
+          """)
+
           []
 
         pad ->
@@ -105,6 +122,8 @@ defmodule Membrane.ICE.Source do
 
   @impl true
   def handle_other({:component_state_ready, stream_id, component_id} = msg, _ctx, state) do
+    Membrane.Logger.debug("Component #{component_id} in stream #{stream_id} READY")
+
     new_connections = MapSet.put(state.connections, {stream_id, component_id})
     new_state = %State{state | connections: new_connections}
     {{:ok, notify: msg}, new_state}
