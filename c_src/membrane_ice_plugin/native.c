@@ -232,6 +232,13 @@ UNIFEX_TERM gather_candidates(UnifexEnv *env, State *state, unsigned int stream_
   return gather_candidates_result_ok(env, state);
 }
 
+UNIFEX_TERM peer_candidate_gathering_done(UnifexEnv *env, State *state, unsigned int stream_id) {
+  if(!nice_agent_peer_candidate_gathering_done(state->agent, stream_id)) {
+    return peer_candidate_gathering_done_result_error_stream_not_found(env);
+  }
+  return peer_candidate_gathering_done_result_ok(env, state);
+}
+
 UNIFEX_TERM get_local_credentials(UnifexEnv *env, State *state, unsigned int stream_id) {
   gchar *ufrag = NULL;
   gchar *pwd = NULL;

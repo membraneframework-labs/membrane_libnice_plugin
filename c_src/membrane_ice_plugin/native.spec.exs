@@ -22,6 +22,9 @@ spec set_remote_credentials(state, credentials :: string, stream_id :: unsigned)
 spec gather_candidates(state, stream_id :: unsigned) :: {:ok :: label, state}
        | {:error :: label, :invalid_stream_or_allocation :: label}
 
+spec peer_candidate_gathering_done(state, stream_id :: unsigned) :: {:ok :: label, state}
+       | {:error :: label, :stream_not_found :: label}
+
 spec set_remote_candidate(state, candidate :: string, stream_id :: unsigned, component_id :: unsigned) ::
        {:ok :: label, state}
        | {:error :: label, :failed_to_parse_sdp_string :: label}
