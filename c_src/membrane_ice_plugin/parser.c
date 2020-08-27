@@ -1,4 +1,4 @@
-#include "arg_parser.h"
+#include "parser.h"
 
 static int parse_stun_servers(NiceAgent *agent, char **stun_servers, unsigned int length);
 static int parse_turn_servers(NiceAgent *agent, char **turn_servers, unsigned int length);
@@ -56,6 +56,7 @@ static int parse_turn_servers(NiceAgent *agent, char **turn_servers, unsigned in
     } else {
       return BAD_TURN_PROTO;
     }
+
     // TODO don't hardcode stream_id and component_id
     if(!nice_agent_set_relay_info(agent, 1, 1, addr, atoi(port), username, passwd, type)) {
       return BAD_TURN_ADDR;
@@ -73,4 +74,9 @@ static int parse_controlling_mode(NiceAgent *agent, int controlling_mode) {
     return BAD_CTLM_FORMAT;
   }
   return 0;
+}
+
+void parse_credentials(char *credentials, char **ufrag, char **pwd) {
+  *ufrag = strtok(credentials, " ");
+  *pwd = strtok(NULL, " ");
 }

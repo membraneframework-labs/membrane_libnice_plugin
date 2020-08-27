@@ -5,22 +5,20 @@
 #include <unistd.h>
 
 #include "native.h"
-#include "arg_parser.h"
+#include "parser.h"
 
-static void cb_candidate_gathering_done(NiceAgent *, guint, gpointer);
-static void cb_component_state_changed(NiceAgent *, guint, guint, guint, gpointer);
-static void cb_new_candidate_full(NiceAgent *, NiceCandidate *, gpointer);
-static void cb_new_selected_pair(NiceAgent *, guint, guint, gchar *, gchar *, gpointer);
-static void cb_recv(NiceAgent *, guint, guint, guint, gchar *, gpointer);
-static void *main_loop_thread_func(void *);
-static void parse_credentials(char *, char **, char **);
-static gboolean attach_recv(UnifexState *, guint, guint);
+static void cb_candidate_gathering_done(NiceAgent *agent, guint stream_id, gpointer user_data);
+static void cb_component_state_changed(NiceAgent *agent, guint stream_id, guint component_id,
+                                       guint component_state, gpointer user_data);
+static void cb_new_candidate_full(NiceAgent *agent, NiceCandidate *candidate, gpointer user_data);
+static void cb_new_selected_pair(NiceAgent *agent, guint stream_id, guint component_id,
+                                 gchar * lfoundation, gchar *rfoundation, gpointer user_data);
+static void cb_recv(NiceAgent *agent, guint stream_id, guint component_id, guint len, gchar *buf,
+                    gpointer user_data);
+static void *main_loop_thread_func(void *user_data);
+static gboolean attach_recv(UnifexState *state, guint stream_id, guint n_components);
 static char *serialize(UnifexPayload *payload, size_t size);
 static UnifexPayload *deserialize(UnifexEnv *env, char *data);
-int parse_args(NiceAgent *, char **, unsigned int, char **, unsigned int, int);
-int parse_stun_servers(NiceAgent *, char **, unsigned int);
-int parse_turn_servers(NiceAgent *, char **, unsigned int);
-int parse_controlling_mode(NiceAgent *agent, int controlling_mode);
 
 UNIFEX_TERM init(UnifexEnv *env, char **stun_servers, unsigned int stun_servers_length,
                  char **turn_servers, unsigned int turn_servers_length, int controlling_mode) {
@@ -34,7 +32,8 @@ UNIFEX_TERM init(UnifexEnv *env, char **stun_servers, unsigned int stun_servers_
   state->env = env;
   NiceAgent *agent = state->agent;
 
-  int parse_res = parse_args(agent, stun_servers, stun_servers_length, turn_servers, turn_servers_length, controlling_mode);
+  int parse_res = parse_args(agent, stun_servers, stun_servers_length, turn_servers,
+                             turn_servers_length, controlling_mode);
   switch(parse_res) {
     case BAD_STUN_FORMAT:
       return unifex_raise(env, "bad stun server format");
@@ -73,15 +72,6 @@ static void *main_loop_thread_func(void *user_data) {
   return NULL;
 }
 
-static void cb_new_candidate_full(NiceAgent *agent, NiceCandidate *candidate,
-                                  gpointer user_data) {
-  State *state = (State *)user_data;
-  gchar *candidate_sdp_str =
-      nice_agent_generate_local_candidate_sdp(agent, candidate);
-  send_new_candidate_full(state->env, *state->env->reply_to, 0, candidate_sdp_str);
-  g_free(candidate_sdp_str);
-}
-
 static void cb_candidate_gathering_done(NiceAgent *agent, guint stream_id,
                                         gpointer user_data) {
   UNIFEX_UNUSED(agent);
@@ -102,12 +92,22 @@ static void cb_component_state_changed(NiceAgent *agent, guint stream_id,
   }
 }
 
+static void cb_new_candidate_full(NiceAgent *agent, NiceCandidate *candidate,
+                                  gpointer user_data) {
+  State *state = (State *)user_data;
+  gchar *candidate_sdp_str =
+      nice_agent_generate_local_candidate_sdp(agent, candidate);
+  send_new_candidate_full(state->env, *state->env->reply_to, 0, candidate_sdp_str);
+  g_free(candidate_sdp_str);
+}
+
 static void cb_new_selected_pair(NiceAgent *agent, guint stream_id,
                                  guint component_id, gchar *lfoundation,
                                  gchar *rfoundation, gpointer user_data) {
   UNIFEX_UNUSED(agent);
   State *state = (State *)user_data;
-  send_new_selected_pair(state->env, *state->env->reply_to, 0, stream_id, component_id, lfoundation, rfoundation);
+  send_new_selected_pair(state->env, *state->env->reply_to, 0, stream_id, component_id,
+                         lfoundation, rfoundation);
 }
 
 static void cb_recv(NiceAgent *agent, guint stream_id, guint component_id,
@@ -189,11 +189,6 @@ UNIFEX_TERM set_remote_credentials(UnifexEnv *env, State *state,
   return set_remote_credentials_result_ok(env, state);
 }
 
-static void parse_credentials(char *credentials, char **ufrag, char **pwd) {
-  *ufrag = strtok(credentials, " ");
-  *pwd = strtok(NULL, " ");
-}
-
 UNIFEX_TERM set_remote_candidate(UnifexEnv *env, State *state,
                                   char *candidate, unsigned int stream_id, unsigned int component_id) {
   NiceCandidate *cand = nice_agent_parse_remote_candidate_sdp(state->agent, stream_id, candidate);
@@ -208,7 +203,8 @@ UNIFEX_TERM set_remote_candidate(UnifexEnv *env, State *state,
   return set_remote_candidate_result_ok(env, state);
 }
 
-UNIFEX_TERM send_payload(UnifexEnv *env, State *state, unsigned int stream_id, unsigned int component_id, UnifexPayload *payload) {
+UNIFEX_TERM send_payload(UnifexEnv *env, State *state, unsigned int stream_id,
+                         unsigned int component_id, UnifexPayload *payload) {
   size_t size = payload->size + sizeof(int) + sizeof(UnifexPayloadType) + sizeof(int);
   char *data = serialize(payload, size);
   if(nice_agent_send(state->agent, stream_id, component_id, size, data) < 0) {
@@ -222,7 +218,8 @@ static char *serialize(UnifexPayload *payload, size_t size) {
   memcpy(data, &payload->size, sizeof(int));
   memcpy(data + sizeof(int), payload->data, payload->size);
   memcpy(data + payload->size + sizeof(int), &payload->type, sizeof(UnifexPayloadType));
-  memcpy(data + payload->size + sizeof(int) + sizeof(UnifexPayloadType), &payload->owned, sizeof(int));
+  memcpy(data + payload->size + sizeof(int) + sizeof(UnifexPayloadType), &payload->owned,
+         sizeof(int));
   return data;
 }
 

@@ -12,3 +12,4 @@
 
 int parse_args(NiceAgent *agent, char **stun_servers, unsigned int stun_servers_length,
                 char **turn_servers, unsigned int turn_servers_length, int controlling_mode);
+void parse_credentials(char *credentials, char **ufrag, char **pwd);
