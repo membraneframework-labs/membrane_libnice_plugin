@@ -10,7 +10,7 @@ defmodule Membrane.ICE.BundlexProject do
   defp natives(_platform) do
     [
       native: [
-        sources: ["native.c", "parser.c"],
+        sources: ["native.c", "parser.c", "unifex_util.c"],
         deps: [unifex: :unifex],
         pkg_configs: ["nice"],
         libs: ["pthread"],
