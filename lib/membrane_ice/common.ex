@@ -22,6 +22,14 @@ defmodule Membrane.ICE.Common do
     end
   end
 
+  def handle_ice_message({:remove_stream, stream_id}, _ctx, %{cnode: cnode} = state) do
+    :ok = Unifex.CNode.call(cnode, :remove_stream, [stream_id])
+
+    Membrane.Logger.debug("remove_stream #{stream_id}: ok")
+
+    {:ok, state}
+  end
+
   def handle_ice_message({:get_local_credentials, stream_id}, _ctx, %{cnode: cnode} = state) do
     case Unifex.CNode.call(cnode, :get_local_credentials, [stream_id]) do
       {:ok, credentials} ->
