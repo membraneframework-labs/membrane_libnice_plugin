@@ -12,6 +12,8 @@ static void cb_candidate_gathering_done(NiceAgent *agent, guint stream_id, gpoin
 static void cb_component_state_changed(NiceAgent *agent, guint stream_id, guint component_id,
                                        guint component_state, gpointer user_data);
 static void cb_new_candidate_full(NiceAgent *agent, NiceCandidate *candidate, gpointer user_data);
+static void cb_new_remote_candidate_full(NiceAgent *agent, NiceCandidate *candidate,
+                                         gpointer user_data);
 static void cb_new_selected_pair(NiceAgent *agent, guint stream_id, guint component_id,
                                  gchar * lfoundation, gchar *rfoundation, gpointer user_data);
 static void cb_recv(NiceAgent *agent, guint stream_id, guint component_id, guint len, gchar *buf,
@@ -54,6 +56,8 @@ UNIFEX_TERM init(UnifexEnv *env, char **stun_servers, unsigned int stun_servers_
                    G_CALLBACK(cb_component_state_changed), state);
   g_signal_connect(G_OBJECT(agent), "new-candidate-full",
                    G_CALLBACK(cb_new_candidate_full), state);
+  g_signal_connect(G_OBJECT(agent), "new-remote-candidate-full",
+                   G_CALLBACK(cb_new_remote_candidate_full), state);
   g_signal_connect(G_OBJECT(agent), "new-selected-pair",
                    G_CALLBACK(cb_new_selected_pair), state);
 
@@ -97,6 +101,17 @@ static void cb_new_candidate_full(NiceAgent *agent, NiceCandidate *candidate,
   gchar *candidate_sdp_str =
       nice_agent_generate_local_candidate_sdp(agent, candidate);
   send_new_candidate_full(state->env, *state->env->reply_to, 0, candidate_sdp_str);
+  g_free(candidate_sdp_str);
+}
+
+
+static void cb_new_remote_candidate_full(NiceAgent *agent, NiceCandidate *candidate,
+                                         gpointer user_data) {
+  State *state = (State *)user_data;
+  // FIXME potentially nice_agent_generate_local_candidate_sdp() may not work with prflx candidate
+  gchar *candidate_sdp_str =
+      nice_agent_generate_local_candidate_sdp(agent, candidate);
+  send_new_remote_candidate_full(state->env, *state->env->reply_to, 0, candidate_sdp_str);
   g_free(candidate_sdp_str);
 }
 

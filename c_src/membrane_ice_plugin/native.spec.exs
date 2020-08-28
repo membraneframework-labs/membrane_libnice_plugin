@@ -34,6 +34,7 @@ spec send_payload(state, stream_id :: unsigned, component_id :: unsigned, data :
        | {:error :: label, :failed_to_send :: label}
 
 sends {:new_candidate_full :: label, candidate :: string}
+sends {:new_remote_candidate_full :: label, candidate :: string}
 sends {:candidate_gathering_done :: label, stream_id :: unsigned}
 sends {:new_selected_pair :: label, stream_id :: unsigned, component_id :: unsigned, lfoundation :: string, rfoundation :: string}
 sends {:component_state_failed :: label, stream_id :: unsigned, component_id :: unsigned}

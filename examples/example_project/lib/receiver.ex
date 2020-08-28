@@ -73,6 +73,13 @@ defmodule Example.Receiver do
   end
 
   @impl true
+  def handle_notification(notification, from, _ctx, state) do
+    Membrane.Logger.warn("other notification: #{inspect(notification)}} from: #{inspect(from)}")
+
+    {:ok, state}
+  end
+
+  @impl true
   def handle_other({:set_remote_credentials, remote_credentials, stream_id}, _ctx, state) do
     {{:ok, forward: {:source, {:set_remote_credentials, remote_credentials, stream_id}}}, state}
   end
@@ -80,5 +87,12 @@ defmodule Example.Receiver do
   @impl true
   def handle_other({:set_remote_candidate, candidate}, _ctx, state) do
     {{:ok, forward: {:source, {:set_remote_candidate, candidate, state.stream_id, 1}}}, state}
+  end
+
+  @impl true
+  def handle_other(msg, _ctx, state) do
+    Membrane.Logger.warn("unknown message: #{inspect(msg)}")
+
+    {:ok, state}
   end
 end

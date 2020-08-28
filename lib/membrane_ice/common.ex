@@ -118,6 +118,12 @@ defmodule Membrane.ICE.Common do
     {{:ok, notify: msg}, state}
   end
 
+  def handle_ice_message({:new_remote_candidate_full, _cand} = msg, _ctx, state) do
+    Membrane.Logger.debug("#{inspect(msg)}")
+
+    {{:ok, notify: msg}, state}
+  end
+
   def handle_ice_message({:candidate_gathering_done, _stream_id} = msg, _ctx, state) do
     Membrane.Logger.debug("#{inspect(msg)}")
 
