@@ -1,7 +1,7 @@
 defmodule Membrane.ICE.Sink.SinkTest do
   use ExUnit.Case, async: true
 
-  import Membrane.Testing.{Assertions, Pipeline}
+  import Membrane.Testing.Assertions
   alias Membrane.Testing
 
   setup do

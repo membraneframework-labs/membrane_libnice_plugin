@@ -75,7 +75,6 @@ defmodule Membrane.ICE.Sink do
       true ->
         new_pads = Map.put(state.pads, {stream_id, component_id}, pad)
         new_state = %State{state | pads: new_pads}
-        :timer.sleep(1000)
         {{:ok, demand: pad}, new_state}
 
       false ->
