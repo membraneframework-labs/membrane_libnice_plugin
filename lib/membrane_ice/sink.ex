@@ -118,16 +118,18 @@ defmodule Membrane.ICE.Sink do
         _context,
         %{cnode: cnode} = state
       ) do
+    payload_size = Membrane.Payload.size(payload)
+
     case Unifex.CNode.call(cnode, :send_payload, [stream_id, component_id, payload]) do
       :ok ->
-        Membrane.Logger.debug("Sent payload: #{Membrane.Payload.size(payload)} bytes")
+        Membrane.Logger.debug("Sent payload: #{payload_size} bytes")
 
         {{:ok, demand: pad}, state}
 
       {:error, cause} ->
         Membrane.Logger.warn("Couldn't send payload: #{inspect(cause)}")
 
-        {{:error, cause}, state}
+        {{:ok, notify: {:could_not_send_payload, payload_size}}, state}
     end
   end
 end

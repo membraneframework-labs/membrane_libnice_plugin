@@ -43,14 +43,14 @@ defmodule Membrane.ICE.Sink.SinkTest do
   end
 
   test "setting local credentials", context do
-#    pid = context[:pid]
-#    Testing.Pipeline.message_child(pid, :sink, {:add_stream, 1})
-#    Testing.Pipeline.message_child(pid, :sink, {:set_remote_credentials, 'asda', 1})
-#    assert_pipeline_notified(pid, :sink, {:local_credentials, _credentials})
+    #    pid = context[:pid]
+    #    Testing.Pipeline.message_child(pid, :sink, {:add_stream, 1})
+    #    Testing.Pipeline.message_child(pid, :sink, {:set_remote_credentials, 'asda', 1})
+    #    assert_pipeline_notified(pid, :sink, {:local_credentials, _credentials})
   end
 
   test "setting remote candidate", context do
-#    pid = context[:pid]
-#    Testing.Pipeline.message_child(pid, :sink, {:add_stream, 1})
+    #    pid = context[:pid]
+    #    Testing.Pipeline.message_child(pid, :sink, {:add_stream, 1})
   end
 end

@@ -28,7 +28,11 @@ UNIFEX_TERM init(UnifexEnv *env, char **stun_servers, unsigned int stun_servers_
   state->agent = nice_agent_new_full(g_main_loop_get_context(state->gloop),
                                 NICE_COMPATIBILITY_RFC5245,
                                 NICE_AGENT_OPTION_REGULAR_NOMINATION);
-  // FIXME this option seems not working
+  /*
+  FIXME
+  This option seems not working.
+  Refer to: https://gitlab.freedesktop.org/libnice/libnice/-/issues/120
+  */
   g_object_set (G_OBJECT (state->agent), "ice-trickle", TRUE, NULL);
   state->env = env;
   NiceAgent *agent = state->agent;
@@ -108,7 +112,11 @@ static void cb_new_candidate_full(NiceAgent *agent, NiceCandidate *candidate,
 static void cb_new_remote_candidate_full(NiceAgent *agent, NiceCandidate *candidate,
                                          gpointer user_data) {
   State *state = (State *)user_data;
-  // FIXME potentially nice_agent_generate_local_candidate_sdp() may not work with prflx candidate
+  /*
+  FIXME
+  Potentially we may be forced to parse it on our own instead of using generate_sdp().
+  Similarly to https://github.com/meetecho/janus-gateway/blob/be78b7935d434ec935e5d15e63f885e7ea84607b/ice.c#L1879-L1904
+  */
   gchar *candidate_sdp_str =
       nice_agent_generate_local_candidate_sdp(agent, candidate);
   send_new_remote_candidate_full(state->env, *state->env->reply_to, 0, candidate_sdp_str);

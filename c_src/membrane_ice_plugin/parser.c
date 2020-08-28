@@ -57,7 +57,10 @@ static int parse_turn_servers(NiceAgent *agent, char **turn_servers, unsigned in
       return BAD_TURN_PROTO;
     }
 
-    // TODO don't hardcode stream_id and component_id
+    /*
+    FIXME
+    Don't hardcode stream_id and component_id.
+    */
     if(!nice_agent_set_relay_info(agent, 1, 1, addr, atoi(port), username, passwd, type)) {
       return BAD_TURN_ADDR;
     }
