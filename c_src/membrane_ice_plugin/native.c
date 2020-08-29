@@ -171,7 +171,7 @@ UNIFEX_TERM remove_stream(UnifexEnv *env, UnifexState *state, unsigned int strea
 UNIFEX_TERM gather_candidates(UnifexEnv *env, State *state, unsigned int stream_id) {
   g_networking_init();
   if(!nice_agent_gather_candidates(state->agent, stream_id)) {
-    gather_candidates_result_error_invalid_stream_or_allocation(env);
+    return gather_candidates_result_error_invalid_stream_or_allocation(env);
   }
   return gather_candidates_result_ok(env, state);
 }
