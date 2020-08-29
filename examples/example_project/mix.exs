@@ -27,7 +27,8 @@ defmodule ExampleProject.MixProject do
        git: "https://github.com/membraneframework/membrane_core.git", override: true},
       {:membrane_ice_plugin, path: "../.."},
       {:membrane_element_file,
-       git: "https://github.com/membraneframework/membrane-element-file", branch: "master"}
+       git: "https://github.com/membraneframework/membrane-element-file", branch: "master"},
+      {:membrane_element_hackney, "~> 0.2"}
     ]
   end
 end

@@ -1,9 +1,8 @@
 defmodule Example.Receiver do
   use Membrane.Pipeline
 
+  alias Example.Common
   alias Membrane.Element.File
-
-  require Membrane.Logger
 
   @impl true
   def handle_init(_) do
@@ -22,20 +21,25 @@ defmodule Example.Receiver do
   end
 
   @impl true
-  def handle_stopped_to_prepared(_ctx, state) do
-    n_components = 1
-    {{:ok, forward: {:source, {:add_stream, n_components}}}, state}
+  def handle_prepared_to_playing(_ctx, state) do
+    children = %{
+      sink: %File.Sink{
+        location: "/tmp/ice-recv.h264"
+      }
+    }
+
+    pad = Pad.ref(:output, state.ready_component)
+    links = [link(:source) |> via_out(pad) |> to(:sink)]
+    spec = %ParentSpec{children: children, links: links}
+    {{:ok, spec: spec}, state}
   end
 
   @impl true
-  def handle_notification({:stream_id, stream_id}, _from, _ctx, state) do
+  def handle_notification({:stream_id, stream_id} = msg, _from, _ctx, state) do
+    Membrane.Logger.info("#{inspect(msg)}")
+
     state = Map.put(state, :stream_id, stream_id)
     {{:ok, forward: {:source, {:gather_candidates, stream_id}}}, state}
-  end
-
-  @impl true
-  def handle_notification({:new_candidate_full, _candidate}, _from, _ctx, state) do
-    {:ok, state}
   end
 
   @impl true
@@ -44,39 +48,14 @@ defmodule Example.Receiver do
   end
 
   @impl true
-  def handle_notification({:local_credentials, _credentials}, _from, _ctx, state) do
-    {:ok, state}
+  def handle_notification(other, from, ctx, state) do
+    Common.handle_notification(other, from, ctx, state)
   end
 
   @impl true
-  def handle_notification(
-        {:new_selected_pair, _stream_id, _component_id, _lfoundation, _rfoundation},
-        _from,
-        _ctx,
-        state
-      ) do
-    {:ok, state}
-  end
-
-  @impl true
-  def handle_notification({:component_state_ready, stream_id, component_id}, _from, _ctx, state) do
-    children = %{
-      sink: %File.Sink{
-        location: "/tmp/ice-recv.h264"
-      }
-    }
-
-    pad = Pad.ref(:output, {stream_id, component_id})
-    links = [link(:source) |> via_out(pad) |> to(:sink)]
-    spec = %ParentSpec{children: children, links: links}
-    {{:ok, spec: spec}, state}
-  end
-
-  @impl true
-  def handle_notification(notification, from, _ctx, state) do
-    Membrane.Logger.warn("other notification: #{inspect(notification)}} from: #{inspect(from)}")
-
-    {:ok, state}
+  def handle_other(:init, _ctx, state) do
+    n_components = 1
+    {{:ok, forward: {:source, {:add_stream, n_components}}}, state}
   end
 
   @impl true
@@ -90,9 +69,7 @@ defmodule Example.Receiver do
   end
 
   @impl true
-  def handle_other(msg, _ctx, state) do
-    Membrane.Logger.warn("unknown message: #{inspect(msg)}")
-
-    {:ok, state}
+  def handle_other(other, ctx, state) do
+    Common.handle_other(other, ctx, state)
   end
 end
