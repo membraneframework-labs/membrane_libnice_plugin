@@ -1,6 +1,8 @@
 defmodule Example.Receiver do
   use Membrane.Pipeline
 
+  require Membrane.Logger
+
   alias Example.Common
   alias Membrane.Element.File
 
@@ -69,7 +71,7 @@ defmodule Example.Receiver do
   end
 
   @impl true
-  def handle_other(other, ctx, state) do
-    Common.handle_other(other, ctx, state)
+  def handle_other(other, _ctx, state) do
+    {{:ok, forward: {:source, other}}, state}
   end
 end

@@ -13,6 +13,11 @@ spec add_stream(state, n_components :: unsigned) :: {:ok :: label, stream :: uns
 
 spec remove_stream(state, stream_id :: unsigned) :: {:ok :: label}
 
+spec generate_local_sdp(state) :: {:ok :: label, local_sdp :: string}
+
+spec parse_remote_sdp(state, remote_sdp :: string) :: {:ok :: label, added_cand_num :: unsigned}
+       | {:error :: label, :failed_to_parse_sdp :: label}
+
 spec get_local_credentials(state, stream_id :: unsigned) :: {:ok :: label, credentials :: string}
        | {:error :: label, :failed_to_get_credentials :: label}
 
@@ -40,3 +45,4 @@ sends {:new_selected_pair :: label, stream_id :: unsigned, component_id :: unsig
 sends {:component_state_failed :: label, stream_id :: unsigned, component_id :: unsigned}
 sends {:component_state_ready :: label, stream_id :: unsigned, component_id :: unsigned}
 sends {:ice_payload :: label, stream_id :: unsigned, component_id :: unsigned, payload :: payload}
+

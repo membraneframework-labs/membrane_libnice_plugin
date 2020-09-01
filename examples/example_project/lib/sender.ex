@@ -1,6 +1,8 @@
 defmodule Example.Sender do
   use Membrane.Pipeline
 
+  require Membrane.Logger
+
   alias Example.Common
   alias Membrane.Element.Hackney
 
@@ -69,7 +71,7 @@ defmodule Example.Sender do
   end
 
   @impl true
-  def handle_other(msg, ctx, state) do
-    Common.handle_other(msg, ctx, state)
+  def handle_other(other, _ctx, state) do
+    {{:ok, forward: {:source, other}}, state}
   end
 end

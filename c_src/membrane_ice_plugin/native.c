@@ -168,6 +168,19 @@ UNIFEX_TERM remove_stream(UnifexEnv *env, UnifexState *state, unsigned int strea
   return remove_stream_result_ok(env);
 }
 
+UNIFEX_TERM generate_local_sdp(UnifexEnv *env, UnifexState *state) {
+  gchar *local_sdp = nice_agent_generate_local_sdp(state->agent);
+  return generate_local_sdp_result_ok(env, local_sdp);
+}
+
+UNIFEX_TERM parse_remote_sdp(UnifexEnv *env, UnifexState *state, char *remote_sdp) {
+  int cand_added_num = nice_agent_parse_remote_sdp(state->agent, remote_sdp);
+	if (cand_added_num < 0) {
+    return parse_remote_sdp_result_error_failed_to_parse_sdp(env);
+  }
+  return parse_remote_sdp_result_ok(env, cand_added_num);
+}
+
 UNIFEX_TERM gather_candidates(UnifexEnv *env, State *state, unsigned int stream_id) {
   g_networking_init();
   if(!nice_agent_gather_candidates(state->agent, stream_id)) {

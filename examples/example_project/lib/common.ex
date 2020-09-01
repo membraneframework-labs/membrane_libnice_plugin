@@ -41,10 +41,4 @@ defmodule Example.Common do
 
     {:ok, state}
   end
-
-  def handle_other(msg, _ctx, state) do
-    Membrane.Logger.warn("unknown message: #{inspect(msg)}")
-
-    {:ok, state}
-  end
 end

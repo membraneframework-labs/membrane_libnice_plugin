@@ -30,6 +30,28 @@ defmodule Membrane.ICE.Common do
     {:ok, state}
   end
 
+  def handle_ice_message(:generate_local_sdp, _ctx, %{cnode: cnode} = state) do
+    {:ok, local_sdp} = Unifex.CNode.call(cnode, :generate_local_sdp)
+
+    Membrane.Logger.debug("local sdp: #{inspect(local_sdp)}")
+
+    {{:ok, notify: {:local_sdp, local_sdp}}, state}
+  end
+
+  def handle_ice_message({:parse_remote_sdp, remote_sdp}, _ctx, %{cnode: cnode} = state) do
+    case Unifex.CNode.call(cnode, :parse_remote_sdp, [remote_sdp]) do
+      {:ok, added_cand_num} ->
+        Membrane.Logger.debug("parse_remote_sdp: ok; added #{added_cand_num} candidates")
+
+        {{:ok, notify: {:parse_remote_sdp_ok, added_cand_num}}, state}
+
+      {:error, cause} ->
+        Membrane.Logger.warn("Couldn't parse remote sdp #{inspect(remote_sdp)}")
+
+        {{:ok, notify: {:error, cause}}, state}
+    end
+  end
+
   def handle_ice_message({:get_local_credentials, stream_id}, _ctx, %{cnode: cnode} = state) do
     case Unifex.CNode.call(cnode, :get_local_credentials, [stream_id]) do
       {:ok, credentials} ->
