@@ -41,7 +41,57 @@ defmodule Membrane.ICE.Sink.SinkTest do
       Testing.Pipeline.message_child(pid, element, {:add_stream, 1})
       assert_pipeline_notified(pid, element, {:stream_id, stream_id})
       assert stream_id > 0
+
+      Testing.Pipeline.message_child(pid, element, {:add_stream, 1, ''})
+      assert_pipeline_notified(pid, element, {:stream_id, stream_id})
+      assert stream_id > 0
+
+      Testing.Pipeline.message_child(pid, element, {:add_stream, 1, 'audio'})
+      assert_pipeline_notified(pid, element, {:stream_id, stream_id})
+      assert stream_id > 0
+
+      Testing.Pipeline.message_child(pid, element, {:add_stream, 1, 'audio'})
+      assert_pipeline_notified(pid, element, {:error, :invalid_stream_or_duplicate_name})
     end
+  end
+
+  describe "generate_local_sdp" do
+    test "sink", context do
+      test_generating_local_sdp(:sink, context[:tx_pid])
+    end
+
+    test "source", context do
+      test_generating_local_sdp(:source, context[:rx_pid])
+    end
+
+    defp test_generating_local_sdp(element, pid) do
+      Testing.Pipeline.message_child(pid, element, {:add_stream, 1, 'audio'})
+      assert_pipeline_notified(pid, element, {:stream_id, stream_id})
+      Testing.Pipeline.message_child(pid, element, :generate_local_sdp)
+      assert_pipeline_notified(pid, element, {:local_sdp, sdp})
+      # returned sdp should contain sdp version, m-line, c field, ice-ufrag nad ice-pwd attributes
+      assert List.to_string(sdp) =~ ~r/v=0\\r\\nm=audio.*c=.*a=ice-ufrag.*a=ice-pwd/i
+    end
+  end
+
+  describe "parse_remote_sdp" do
+#    test "sink", context do
+#      test_parsing_remote_sdp(:sink, context[:tx_pid])
+#    end
+#
+#    test "source", context do
+#      test_generating_local_sdp(:source, context[:rx_pid])
+#    end
+#
+#    defp test_parsing_remote_sdp(element, pid) do
+#      Testing.Pipeline.message_child(pid, element, {:add_stream, 1, 'audio'})
+#      assert_pipeline_notified(pid, element, {:stream_id, stream_id})
+#      Testing.Pipeline.message_child(pid, element, :generate_local_sdp)
+#      assert_pipeline_notified(pid, element, {:local_sdp, sdp})
+#      # returned sdp should contain sdp version, m-line, c field, ice-ufrag nad ice-pwd attributes
+#      assert List.to_string(sdp) =~ ~r/v=0\\r\\nm=audio.*c=.*a=ice-ufrag.*a=ice-pwd/i
+#    end
+
   end
 
   describe "get local credentials" do
