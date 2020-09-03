@@ -10,7 +10,7 @@ defmodule Membrane.ICE.Support.TestReceiver do
     children = %{
       source: %Membrane.ICE.Source{
         stun_servers: ['64.233.161.127:19302'],
-        controlling_mode: 0
+        controlling_mode: false
       }
     }
 

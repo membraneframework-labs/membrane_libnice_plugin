@@ -1,7 +1,7 @@
 defmodule Membrane.ICE.Common do
-  @moduledoc """
-  Module containing common behaviour for Sink and Source modules.
-  """
+  @moduledoc false
+
+  # Module containing common behaviour for Sink and Source modules.
 
   require Unifex.CNode
   require Membrane.Logger
@@ -171,7 +171,7 @@ defmodule Membrane.ICE.Common do
   end
 
   def handle_ice_message({:component_state_failed, _stream_id, _component_id} = msg, _ctx, state) do
-    Membrane.Logger.debug("#{inspect(msg)}")
+    Membrane.Logger.warn("#{inspect(msg)}")
 
     {:ok, state}
   end

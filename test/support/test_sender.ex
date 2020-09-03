@@ -10,7 +10,7 @@ defmodule Membrane.ICE.Support.TestSender do
     children = %{
       sink: %Membrane.ICE.Sink{
         stun_servers: ['64.233.161.127:19302'],
-        controlling_mode: 1
+        controlling_mode: true
       }
     }
 

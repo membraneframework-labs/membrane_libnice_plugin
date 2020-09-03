@@ -1,11 +1,37 @@
 defmodule Membrane.ICE.Source do
   @moduledoc """
-  Element that receives buffers and sends them on relevant pads.
+  Element that receives buffers (over UDP or TCP) and sends them on relevant pads.
 
   For example if buffer was received by component 1 on stream 1 the buffer will be passed
   on pad {1, 1}. The pipeline or bin has to create link to this element after receiving
   {:component_state_ready, stream_id, component_id} message. Doing it earlier will cause an error
   because given component is not in the READY state yet.
+
+  ## Pad semantics
+  Each dynamic pad has to be created with id represented by a tuple `{stream_id, component_id}`.
+  Receiving data on component with id `component_id` in stream with id `stream_id` will cause in
+  conveying this data on pad with id `{stream_id, component_id}`.
+  It is important to link to the Source only after receiving message
+  `{:component_state_ready, stream_id, component_id}` which indicates that component with id
+  `component_id` in stream with `stream_id` is ready to send and receive data.
+
+  ## Interacting with Source
+  Interacting with Source is the same as with Sink. Please refer to `Membrane.ICE.Sink` for
+  details.
+
+  ### Messages Source is able to process
+  Messages Source is able to process are the same as for Sink. Please refer to `Membrane.ICE.Sink`
+  for details.
+
+  ### Messages Source sends
+  Source sends all messages that Sink sends (please refer to `Membrane.ICE.Sink`) and additionally
+  one more:
+
+  - `{:ice_payload, stream_id, component_id, payload}` - new received payload on component with id
+  `component_id` in stream with id `stream_id`.
+
+    Triggered by: this message is not triggered by any other message.
+
   """
 
   use Membrane.Source
@@ -27,9 +53,9 @@ defmodule Membrane.ICE.Source do
                 description: "List of turn servers in form of ip:port:proto:username:passwd"
               ],
               controlling_mode: [
-                type: :integer,
-                default: 0,
-                description: "0 for FALSE, 1 for TRUE"
+                type: :bool,
+                default: false,
+                description: "Refer to RFC 8445 section 4 - Controlling and Controlled Agent"
               ]
 
   def_output_pad :output,
@@ -42,12 +68,10 @@ defmodule Membrane.ICE.Source do
 
     @type t :: %__MODULE__{
             cnode: Unifex.CNode.t(),
-            connections: MapSet.t(),
-            pads: %{{stream_id :: integer, component_id :: integer} => Pad.ref_t()}
+            connections: MapSet.t()
           }
     defstruct cnode: nil,
-              connections: MapSet.new(),
-              pads: %{}
+              connections: MapSet.new()
   end
 
   @impl true
@@ -69,13 +93,10 @@ defmodule Membrane.ICE.Source do
   end
 
   @impl true
-  def handle_pad_added(Pad.ref(:output, {stream_id, component_id}) = pad, _ctx, state) do
-    case MapSet.member?(state.connections, {stream_id, component_id}) do
-      true ->
-        new_pads = Map.put(state.pads, {stream_id, component_id}, pad)
-        {:ok, %State{state | pads: new_pads}}
-
-      false ->
+  def handle_pad_added(Pad.ref(:output, {stream_id, component_id}), _ctx, state) do
+    if MapSet.member?(state.connections, {stream_id, component_id}) do
+        {:ok, state}
+    else
         Membrane.Logger.error("""
         Connection for stream: #{stream_id} and component: #{component_id} not established yet.
         Cannot add pad
@@ -86,25 +107,15 @@ defmodule Membrane.ICE.Source do
   end
 
   @impl true
-  def handle_pad_removed(Pad.ref(:output, {_stream_id, _component_id}) = pad, _ctx, state) do
-    new_pads =
-      state.pads
-      |> Enum.filter(fn {_key, inner_pad} -> inner_pad != pad end)
-      |> Enum.into(%{})
-
-    {:ok, %State{state | pads: new_pads}}
-  end
-
-  @impl true
   def handle_other(
         {:ice_payload, stream_id, component_id, payload},
-        %{playback_state: :playing},
+        %{playback_state: :playing} = ctx,
         state
       ) do
     Membrane.Logger.debug("Received payload: #{Membrane.Payload.size(payload)} bytes")
 
     actions =
-      case Map.get(state.pads, {stream_id, component_id}) do
+      case Map.get(ctx.pads, Pad.ref(:output, {stream_id, component_id})) do
         nil ->
           Membrane.Logger.warn("""
           Pad for stream: #{stream_id} and component: #{component_id} not
@@ -114,7 +125,7 @@ defmodule Membrane.ICE.Source do
           []
 
         pad ->
-          [buffer: {pad, %Buffer{payload: payload}}]
+          [buffer: {pad.ref, %Buffer{payload: payload}}]
       end
 
     {{:ok, actions}, state}

@@ -21,7 +21,9 @@ end
 
 ## Usage
 
-See [example_project](examples/example_project) for usage information.
+See [example_project](examples/example_project) for example usage or refer to
+[hex.pm](https://hex.pm/packages/membrane_ice_plugin) for more details about how to interact with
+Sink and Source.
 
 ## Copyright and License
 

@@ -10,7 +10,7 @@ defmodule Membrane.ICE.Sink.SinkTest do
         elements: [
           sink: %Membrane.ICE.Sink{
             stun_servers: ['64.233.161.127:19302'],
-            controlling_mode: 1
+            controlling_mode: true
           }
         ]
       })
@@ -20,7 +20,7 @@ defmodule Membrane.ICE.Sink.SinkTest do
         elements: [
           source: %Membrane.ICE.Source{
             stun_servers: ['64.233.161.127:19302'],
-            controlling_mode: 0
+            controlling_mode: false
           }
         ]
       })
