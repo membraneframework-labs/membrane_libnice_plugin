@@ -6,8 +6,12 @@ defmodule Membrane.ICE.Common do
   require Unifex.CNode
   require Membrane.Logger
 
-  def handle_ice_message({:add_stream, n_components}, _ctx, %{cnode: cnode} = state) do
-    case Unifex.CNode.call(cnode, :add_stream, [n_components]) do
+  def handle_ice_message({:add_stream, n_components}, ctx, state) do
+    handle_ice_message({:add_stream, n_components, ''}, ctx, state)
+  end
+
+  def handle_ice_message({:add_stream, n_components, name}, _ctx, %{cnode: cnode} = state) do
+    case Unifex.CNode.call(cnode, :add_stream, [n_components, name]) do
       {:ok, stream_id} ->
         Membrane.Logger.debug("New stream_id: #{stream_id}")
 
@@ -15,7 +19,8 @@ defmodule Membrane.ICE.Common do
 
       {:error, cause} ->
         Membrane.Logger.warn("""
-        Couldn't add stream with #{n_components} components: #{inspect(cause)}
+        Couldn't add stream with #{n_components} components and name "#{inspect(name)}":
+        #{inspect(cause)}
         """)
 
         {{:ok, notify: {:error, cause}}, state}
@@ -32,6 +37,9 @@ defmodule Membrane.ICE.Common do
 
   def handle_ice_message(:generate_local_sdp, _ctx, %{cnode: cnode} = state) do
     {:ok, local_sdp} = Unifex.CNode.call(cnode, :generate_local_sdp)
+
+    # the version of the SDP protocol. RFC 4566 defines only v=0 - section 5.1
+    local_sdp = 'v=0\r\n' ++ local_sdp
 
     Membrane.Logger.debug("local sdp: #{inspect(local_sdp)}")
 

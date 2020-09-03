@@ -72,6 +72,6 @@ defmodule Example.Sender do
 
   @impl true
   def handle_other(other, _ctx, state) do
-    {{:ok, forward: {:source, other}}, state}
+    {{:ok, forward: {:sink, other}}, state}
   end
 end

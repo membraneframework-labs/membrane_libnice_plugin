@@ -7,8 +7,9 @@ state_type "State"
 spec init(stun_servers :: [string], turn_servers :: [string], controlling_mode :: int) ::
        {:ok :: label, state}
 
-spec add_stream(state, n_components :: unsigned) :: {:ok :: label, stream :: unsigned}
+spec add_stream(state, n_components :: unsigned, name :: string) :: {:ok :: label, stream_id :: unsigned}
        | {:error :: label, :failed_to_add_stream :: label}
+       | {:error :: label, :invalid_stream_or_duplicate_name :: label}
        | {:error :: label, :failed_to_attach_recv :: label}
 
 spec remove_stream(state, stream_id :: unsigned) :: {:ok :: label}

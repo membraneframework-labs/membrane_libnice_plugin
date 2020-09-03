@@ -142,14 +142,25 @@ static void cb_recv(NiceAgent *agent, guint stream_id, guint component_id,
 }
 
 UNIFEX_TERM add_stream(UnifexEnv *env, UnifexState *state,
-                       unsigned int n_components) {
+                       unsigned int n_components, char *name) {
   guint stream_id = nice_agent_add_stream(state->agent, n_components);
   if (stream_id == 0) {
     return add_stream_result_error_failed_to_add_stream(env);
   }
+
   if(!attach_recv(state, stream_id, n_components)) {
     return add_stream_result_error_failed_to_attach_recv(env);
   }
+
+  // set name if one was specified
+  if (strcmp(name, "") == 0) {
+    return add_stream_result_ok(env, stream_id);
+  } else {
+    if (!nice_agent_set_stream_name(state->agent, stream_id, name)) {
+      return add_stream_result_error_invalid_stream_or_duplicate_name(env);
+    }
+  }
+
   return add_stream_result_ok(env, stream_id);
 }
 
