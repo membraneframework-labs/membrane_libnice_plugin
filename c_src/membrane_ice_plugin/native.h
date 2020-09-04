@@ -11,6 +11,8 @@ struct State {
   GMainLoop *gloop;
   NiceAgent *agent;
   pthread_t gloop_tid;
+  unsigned int min_port;
+  unsigned int max_port;
 };
 
 #include "_generated/native.h"

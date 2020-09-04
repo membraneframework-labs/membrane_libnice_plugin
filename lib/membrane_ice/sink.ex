@@ -160,6 +160,16 @@ defmodule Membrane.ICE.Sink do
                 type: :bool,
                 default: false,
                 description: "Refer to RFC 8445 section 4 - Controlling and Controlled Agent"
+              ],
+              min_port: [
+                type: :unsigned,
+                default: 0,
+                description: "The minimum port to use"
+              ],
+              max_port: [
+                type: :unsigned,
+                default: 0,
+                description: "The maximum port to use"
               ]
 
   def_input_pad :input,
@@ -184,11 +194,21 @@ defmodule Membrane.ICE.Sink do
     %__MODULE__{
       stun_servers: stun_servers,
       turn_servers: turn_servers,
-      controlling_mode: controlling_mode
+      controlling_mode: controlling_mode,
+      min_port: min_port,
+      max_port: max_port
     } = options
 
     {:ok, cnode} = Unifex.CNode.start_link(:native)
-    :ok = Unifex.CNode.call(cnode, :init, [stun_servers, turn_servers, controlling_mode])
+
+    :ok =
+      Unifex.CNode.call(cnode, :init, [
+        stun_servers,
+        turn_servers,
+        controlling_mode,
+        min_port,
+        max_port
+      ])
 
     state = %State{
       cnode: cnode

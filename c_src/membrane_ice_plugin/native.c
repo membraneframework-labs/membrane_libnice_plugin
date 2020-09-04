@@ -22,7 +22,8 @@ static void *main_loop_thread_func(void *user_data);
 static gboolean attach_recv(UnifexState *state, guint stream_id, guint n_components);
 
 UNIFEX_TERM init(UnifexEnv *env, char **stun_servers, unsigned int stun_servers_length,
-                 char **turn_servers, unsigned int turn_servers_length, int controlling_mode) {
+                 char **turn_servers, unsigned int turn_servers_length, int controlling_mode,
+                 unsigned int min_port, unsigned int max_port) {
   State *state = unifex_alloc_state(env);
   state->gloop = g_main_loop_new(NULL, FALSE);
   state->agent = nice_agent_new_full(g_main_loop_get_context(state->gloop),
@@ -35,6 +36,8 @@ UNIFEX_TERM init(UnifexEnv *env, char **stun_servers, unsigned int stun_servers_
   */
   g_object_set (G_OBJECT (state->agent), "ice-trickle", TRUE, NULL);
   state->env = env;
+  state->min_port = min_port;
+  state->max_port = max_port;
   NiceAgent *agent = state->agent;
 
   int parse_res = parse_args(agent, stun_servers, stun_servers_length, turn_servers,
@@ -159,6 +162,11 @@ UNIFEX_TERM add_stream(UnifexEnv *env, UnifexState *state,
     if (!nice_agent_set_stream_name(state->agent, stream_id, name)) {
       return add_stream_result_error_invalid_stream_or_duplicate_name(env);
     }
+  }
+
+  // set port range for each component in stream
+  for (unsigned int i = 1; i <= n_components; i++) {
+    nice_agent_set_port_range(state->agent, stream_id, i, state->min_port, state->max_port);
   }
 
   return add_stream_result_ok(env, stream_id);
