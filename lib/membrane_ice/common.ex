@@ -56,7 +56,7 @@ defmodule Membrane.ICE.Common do
       {:error, cause} ->
         Membrane.Logger.warn("Couldn't parse remote sdp #{inspect(remote_sdp)}")
 
-        {{:ok, notify: {:error, cause}}, state}
+        {{:error, cause}, state}
     end
   end
 

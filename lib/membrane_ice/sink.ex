@@ -63,7 +63,6 @@ defmodule Membrane.ICE.Sink do
 
     Result notifications:
     - `{:parse_remote_sdp_ok, added_cand_num}`
-    - `{:error, :failed_to_parse_sdp}`
 
   - `{:get_local_credentials, stream_id}` - returns local credentials for stream with id `stream_id`.
 
@@ -201,14 +200,14 @@ defmodule Membrane.ICE.Sink do
   @impl true
   def handle_pad_added(Pad.ref(:input, {stream_id, component_id}) = pad, _ctx, state) do
     if MapSet.member?(state.connections, {stream_id, component_id}) do
-        {{:ok, demand: pad}, state}
+      {{:ok, demand: pad}, state}
     else
-        Membrane.Logger.error("""
-        Connection for stream: #{stream_id} and component: #{component_id} not established yet.
-        Cannot add pad
-        """)
+      Membrane.Logger.error("""
+      Connection for stream: #{stream_id} and component: #{component_id} not established yet.
+      Cannot add pad
+      """)
 
-        {{:error, :connection_not_established_yet}, state}
+      {{:error, :connection_not_established_yet}, state}
     end
   end
 

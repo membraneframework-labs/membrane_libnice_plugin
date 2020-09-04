@@ -95,14 +95,14 @@ defmodule Membrane.ICE.Source do
   @impl true
   def handle_pad_added(Pad.ref(:output, {stream_id, component_id}), _ctx, state) do
     if MapSet.member?(state.connections, {stream_id, component_id}) do
-        {:ok, state}
+      {:ok, state}
     else
-        Membrane.Logger.error("""
-        Connection for stream: #{stream_id} and component: #{component_id} not established yet.
-        Cannot add pad
-        """)
+      Membrane.Logger.error("""
+      Connection for stream: #{stream_id} and component: #{component_id} not established yet.
+      Cannot add pad
+      """)
 
-        {{:ok, notify: :connection_not_established_yet}, state}
+      {{:ok, notify: :connection_not_established_yet}, state}
     end
   end
 

@@ -69,29 +69,43 @@ defmodule Membrane.ICE.Sink.SinkTest do
       assert_pipeline_notified(pid, element, {:stream_id, stream_id})
       Testing.Pipeline.message_child(pid, element, :generate_local_sdp)
       assert_pipeline_notified(pid, element, {:local_sdp, sdp})
-      # returned sdp should contain sdp version, m-line, c field, ice-ufrag nad ice-pwd attributes
-      assert List.to_string(sdp) =~ ~r/v=0\\r\\nm=audio.*c=.*a=ice-ufrag.*a=ice-pwd/i
+      assert String.contains?(List.to_string(sdp), ["v=0", "m=audio", "a=ice-ufrag", "a=ice-pwd"])
     end
   end
 
   describe "parse_remote_sdp" do
-#    test "sink", context do
-#      test_parsing_remote_sdp(:sink, context[:tx_pid])
-#    end
-#
-#    test "source", context do
-#      test_generating_local_sdp(:source, context[:rx_pid])
-#    end
-#
-#    defp test_parsing_remote_sdp(element, pid) do
-#      Testing.Pipeline.message_child(pid, element, {:add_stream, 1, 'audio'})
-#      assert_pipeline_notified(pid, element, {:stream_id, stream_id})
-#      Testing.Pipeline.message_child(pid, element, :generate_local_sdp)
-#      assert_pipeline_notified(pid, element, {:local_sdp, sdp})
-#      # returned sdp should contain sdp version, m-line, c field, ice-ufrag nad ice-pwd attributes
-#      assert List.to_string(sdp) =~ ~r/v=0\\r\\nm=audio.*c=.*a=ice-ufrag.*a=ice-pwd/i
-#    end
+    test "sink", context do
+      test_parsing_remote_sdp(:sink, context[:tx_pid])
+    end
 
+    test "source", context do
+      test_generating_local_sdp(:source, context[:rx_pid])
+    end
+
+    defp test_parsing_remote_sdp(element, pid) do
+      Testing.Pipeline.message_child(pid, element, {:add_stream, 1, 'audio'})
+      assert_pipeline_notified(pid, element, {:stream_id, stream_id})
+
+      Testing.Pipeline.message_child(
+        pid,
+        element,
+        {:parse_remote_sdp,
+         'v=0\r\nm=audio 0 ICE/SDP\nc=IN IP4 0.0.0.0\na=ice-ufrag:8Fp+\na=ice-pwd:BVsIrRqHCcr/lr7JPgHa8k\n'}
+      )
+
+      assert_pipeline_notified(pid, element, {:parse_remote_sdp_ok, 0})
+
+      Process.flag(:trap_exit, true)
+
+      Testing.Pipeline.message_child(
+        pid,
+        element,
+        {:parse_remote_sdp,
+         'v=0\r\nm=audio 0 ICE/SDP\nc=IN IP4 0.0.0.0\na=ice-ufrag:8Fp+\na=ice-pwd:BVsIrRqHCcr/lr7JPgHa8k\nm=audio 0 ICE/SDP\nc=IN IP4 0.0.0.0\na=ice-ufrag:8Fp+\na=ice-pwd:BVsIrRqHCcr/lr7JPgHa8k\n'}
+      )
+
+      assert_receive({:EXIT, ^pid, {:error, {:cannot_handle_message, :failed_to_parse_sdp, _}}})
+    end
   end
 
   describe "get local credentials" do
