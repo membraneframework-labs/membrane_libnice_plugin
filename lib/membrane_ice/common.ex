@@ -7,7 +7,7 @@ defmodule Membrane.ICE.Common do
   require Membrane.Logger
 
   def handle_ice_message({:add_stream, n_components}, ctx, state) do
-    handle_ice_message({:add_stream, n_components, ''}, ctx, state)
+    handle_ice_message({:add_stream, n_components, ""}, ctx, state)
   end
 
   def handle_ice_message({:add_stream, n_components, name}, _ctx, %{cnode: cnode} = state) do
@@ -39,7 +39,7 @@ defmodule Membrane.ICE.Common do
     {:ok, local_sdp} = Unifex.CNode.call(cnode, :generate_local_sdp)
 
     # the version of the SDP protocol. RFC 4566 defines only v=0 - section 5.1
-    local_sdp = 'v=0\r\n' ++ local_sdp
+    local_sdp = "v=0\r\n" <> local_sdp
 
     Membrane.Logger.debug("local sdp: #{inspect(local_sdp)}")
 

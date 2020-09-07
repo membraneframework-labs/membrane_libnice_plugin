@@ -9,7 +9,7 @@ defmodule Membrane.ICE.Sink.SinkTest do
       Testing.Pipeline.start_link(%Testing.Pipeline.Options{
         elements: [
           sink: %Membrane.ICE.Sink{
-            stun_servers: ['64.233.161.127:19302'],
+            stun_servers: ["64.233.161.127:19302"],
             controlling_mode: true
           }
         ]
@@ -19,7 +19,7 @@ defmodule Membrane.ICE.Sink.SinkTest do
       Testing.Pipeline.start_link(%Testing.Pipeline.Options{
         elements: [
           source: %Membrane.ICE.Source{
-            stun_servers: ['64.233.161.127:19302'],
+            stun_servers: ["64.233.161.127:19302"],
             controlling_mode: false
           }
         ]
@@ -42,15 +42,15 @@ defmodule Membrane.ICE.Sink.SinkTest do
       assert_pipeline_notified(pid, element, {:stream_id, stream_id})
       assert stream_id > 0
 
-      Testing.Pipeline.message_child(pid, element, {:add_stream, 1, ''})
+      Testing.Pipeline.message_child(pid, element, {:add_stream, 1, ""})
       assert_pipeline_notified(pid, element, {:stream_id, stream_id})
       assert stream_id > 0
 
-      Testing.Pipeline.message_child(pid, element, {:add_stream, 1, 'audio'})
+      Testing.Pipeline.message_child(pid, element, {:add_stream, 1, "audio"})
       assert_pipeline_notified(pid, element, {:stream_id, stream_id})
       assert stream_id > 0
 
-      Testing.Pipeline.message_child(pid, element, {:add_stream, 1, 'audio'})
+      Testing.Pipeline.message_child(pid, element, {:add_stream, 1, "audio"})
       assert_pipeline_notified(pid, element, {:error, :invalid_stream_or_duplicate_name})
     end
   end
@@ -65,11 +65,11 @@ defmodule Membrane.ICE.Sink.SinkTest do
     end
 
     defp test_generating_local_sdp(element, pid) do
-      Testing.Pipeline.message_child(pid, element, {:add_stream, 1, 'audio'})
+      Testing.Pipeline.message_child(pid, element, {:add_stream, 1, "audio"})
       assert_pipeline_notified(pid, element, {:stream_id, stream_id})
       Testing.Pipeline.message_child(pid, element, :generate_local_sdp)
       assert_pipeline_notified(pid, element, {:local_sdp, sdp})
-      assert String.contains?(List.to_string(sdp), ["v=0", "m=audio", "a=ice-ufrag", "a=ice-pwd"])
+      assert String.contains?(sdp, ["v=0", "m=audio", "a=ice-ufrag", "a=ice-pwd"])
     end
   end
 
@@ -83,14 +83,14 @@ defmodule Membrane.ICE.Sink.SinkTest do
     end
 
     defp test_parsing_remote_sdp(element, pid) do
-      Testing.Pipeline.message_child(pid, element, {:add_stream, 1, 'audio'})
+      Testing.Pipeline.message_child(pid, element, {:add_stream, 1, "audio"})
       assert_pipeline_notified(pid, element, {:stream_id, stream_id})
 
       Testing.Pipeline.message_child(
         pid,
         element,
         {:parse_remote_sdp,
-         'v=0\r\nm=audio 0 ICE/SDP\nc=IN IP4 0.0.0.0\na=ice-ufrag:8Fp+\na=ice-pwd:BVsIrRqHCcr/lr7JPgHa8k\n'}
+         "v=0\r\nm=audio 0 ICE/SDP\nc=IN IP4 0.0.0.0\na=ice-ufrag:8Fp+\na=ice-pwd:BVsIrRqHCcr/lr7JPgHa8k\n"}
       )
 
       assert_pipeline_notified(pid, element, {:parse_remote_sdp_ok, 0})
@@ -101,7 +101,7 @@ defmodule Membrane.ICE.Sink.SinkTest do
         pid,
         element,
         {:parse_remote_sdp,
-         'v=0\r\nm=audio 0 ICE/SDP\nc=IN IP4 0.0.0.0\na=ice-ufrag:8Fp+\na=ice-pwd:BVsIrRqHCcr/lr7JPgHa8k\nm=audio 0 ICE/SDP\nc=IN IP4 0.0.0.0\na=ice-ufrag:8Fp+\na=ice-pwd:BVsIrRqHCcr/lr7JPgHa8k\n'}
+         "v=0\r\nm=audio 0 ICE/SDP\nc=IN IP4 0.0.0.0\na=ice-ufrag:8Fp+\na=ice-pwd:BVsIrRqHCcr/lr7JPgHa8k\nm=audio 0 ICE/SDP\nc=IN IP4 0.0.0.0\na=ice-ufrag:8Fp+\na=ice-pwd:BVsIrRqHCcr/lr7JPgHa8k\n"}
       )
 
       assert_receive({:EXIT, ^pid, {:error, {:cannot_handle_message, :failed_to_parse_sdp, _}}})
@@ -142,7 +142,7 @@ defmodule Membrane.ICE.Sink.SinkTest do
       Testing.Pipeline.message_child(
         pid,
         element,
-        {:set_remote_credentials, 'DWIS nuNjkHVrkUZsfLJisHGWHy', 1}
+        {:set_remote_credentials, "DWIS nuNjkHVrkUZsfLJisHGWHy", 1}
       )
 
       refute_receive(
@@ -154,7 +154,7 @@ defmodule Membrane.ICE.Sink.SinkTest do
       Testing.Pipeline.message_child(
         pid,
         element,
-        {:set_remote_credentials, 'invalid_cred', stream_id}
+        {:set_remote_credentials, "invalid_cred", stream_id}
       )
 
       assert_receive(
@@ -223,7 +223,7 @@ defmodule Membrane.ICE.Sink.SinkTest do
       Testing.Pipeline.message_child(
         pid,
         element,
-        {:set_remote_candidate, 'a=candidate:1 1 UDP 2015363327 192.168.83.205 38292 typ host',
+        {:set_remote_candidate, "a=candidate:1 1 UDP 2015363327 192.168.83.205 38292 typ host",
          stream_id, 1}
       )
 
@@ -232,7 +232,7 @@ defmodule Membrane.ICE.Sink.SinkTest do
       Testing.Pipeline.message_child(
         pid,
         element,
-        {:set_remote_candidate, 'invalid_sdp_string', stream_id, 1}
+        {:set_remote_candidate, "invalid_sdp_string", stream_id, 1}
       )
 
       assert_pipeline_notified(pid, element, {:error, :failed_to_parse_sdp_string})

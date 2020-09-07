@@ -20,18 +20,18 @@ iex(bundlex_app_...)2> send(pid, :init)
 :init
 ```
 
-Sending `:init` message will add a new stream with one component as well as gather
-local credentials and candidates.
+Sending `:init` message will add a new stream with one component as well as generate local SDP
+containing information about stream and credentials. It will also start gathering candidates
+process.
 Your output should look similarly to this:
 ```elixir
-12:26:45.415 [info]  [pipeline@<0.366.0>] {stream_id: 1}
+[info]  [pipeline@<0.366.0>] {stream_id: 1}
 
-12:26:45.440 [info]  [pipeline@<0.366.0>] {:new_candidate_full, 'a=candidate:1 1 UDP 2015363327 192.168.83.205 38292 typ host'}
+[debug] [:sink] local sdp: "v=0\r\nm=- 0 ICE/SDP\nc=IN IP4 0.0.0.0\na=ice-ufrag:Zdu1\na=ice-pwd:4nRN+sSf8Ednd+MFA1FK8Q\n"
+
+[info]  [pipeline@<0.366.0>] {:new_candidate_full, "a=candidate:1 1 UDP 2015363327 192.168.83.205 38292 typ host"}
 
 ...
-
-12:26:45.634 [info]  [pipeline@<0.366.0>] {:local_credentials, 'DWIS nuNjkHVrkUZsfLJisHGWHy'}
-
 ```
 
 Now do the same on the receiver machine. Type:
@@ -42,31 +42,31 @@ iex(1)> {:ok, pid} = Example.Receiver.start_link()
 iex(bundlex_app_...)2> send(pid, :init)
 :init
 ```
-Again you should see logs with local candidates and credentials.
+Again you should see logs with local SDP and candidates.
 
 Next step is to exchange gathered information between peers.
 In order to do this type on the receiver machine:
 
 ```elixir
-iex(...)> send(pid, {:set_remote_credentials, 'DWIS nuNjkHVrkUZsfLJisHGWHy', 1})
+iex(...)> send(pid, {:parse_remote_sdp, "v=0\r\nm=- 0 ICE/SDP\nc=IN IP4 0.0.0.0\na=ice-ufrag:Zdu1\na=ice-pwd:4nRN+sSf8Ednd+MFA1FK8Q\n"})
 ```
 
 and the same on the sender side.
-Remember to pass relevant credentials.
+Remember to pass relevant SDPs.
 
 
 Time to exchange our candidates and start connectivity checks.
 We will do it by typing:
 
 ```elixir
-iex(...)> send(pid, {:set_remote_candidate, 'a=candidate:1 1 UDP 2015363327 <some_ip> <some_port> typ host'})
+iex(...)> send(pid, {:set_remote_candidate, "a=candidate:1 1 UDP 2015363327 <some_ip> <some_port> typ host"})
 ```
 This will start connection establishment attempts.
 
 After setting remote candidates both for the sender and receiver you should see logs similar to
 
 ```elixir
-12:13:17.143 [info]  [pipeline@<0.551.0>] {:new_selected_pair, 1, 1, '4', '7'}
+12:13:17.143 [info]  [pipeline@<0.551.0>] {:new_selected_pair, 1, 1, "4", "7"}
 
 12:13:17.143 [info]  [pipeline@<0.551.0>] {:component_state_ready, 1, 1}
 ```

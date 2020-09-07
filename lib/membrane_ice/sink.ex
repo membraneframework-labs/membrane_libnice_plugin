@@ -48,8 +48,9 @@ defmodule Membrane.ICE.Sink do
 
     Result notifications: none.
 
-  - `:generate_local_sdp` - generates a SDP string containing the local candidates and credentials
-  for all streams and components.
+  - `:generate_local_sdp` - generates a SDP string containing the local candidates and credentials for all streams and
+  components. Notice that local candidates will be present in the result SDP only if
+  `{:gather_candidates, stream_id}` message has been sent previously.
 
     Result notifications:
     - `{:local_sdp, sdp}` - it is important that returned SDP will not contain
@@ -81,10 +82,12 @@ defmodule Membrane.ICE.Sink do
     Result notifications:
      - none in case of success
 
-  - `{:peer_candidate_gathering_done, stream_id}` - indicates that all remotes candidates for stream
-  with id `stream_id` have been passed. This allows for components in given stream to change
-  their state to `COMPONENT_STATE_FAILED` (in fact there is a bug please refer to
-  [#120](https://gitlab.freedesktop.org/libnice/libnice/-/issues/120))
+  - `{:peer_candidate_gathering_done, stream_id}` - indicates that all remote candidates for stream
+  with id `stream_id` have been passed. After receiving this message components can change
+  their state to `FAILED` if all their connectivity checks have failed. Not sending this
+  message will cause components stay in `CONNECTING` state. (In fact there is a bug and components
+  can change their state to `FAILED` even without sending this message. Please refer to
+  [#120](https://gitlab.freedesktop.org/libnice/libnice/-/issues/120.)
 
     Result notifications:
     - none in case of success
@@ -161,15 +164,10 @@ defmodule Membrane.ICE.Sink do
                 default: false,
                 description: "Refer to RFC 8445 section 4 - Controlling and Controlled Agent"
               ],
-              min_port: [
-                type: :unsigned,
-                default: 0,
-                description: "The minimum port to use"
-              ],
-              max_port: [
-                type: :unsigned,
-                default: 0,
-                description: "The maximum port to use"
+              port_range: [
+                type: :range,
+                default: 0..0,
+                description: "The port range to use"
               ]
 
   def_input_pad :input,
@@ -195,8 +193,7 @@ defmodule Membrane.ICE.Sink do
       stun_servers: stun_servers,
       turn_servers: turn_servers,
       controlling_mode: controlling_mode,
-      min_port: min_port,
-      max_port: max_port
+      port_range: min_port..max_port
     } = options
 
     {:ok, cnode} = Unifex.CNode.start_link(:native)

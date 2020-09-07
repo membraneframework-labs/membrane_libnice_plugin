@@ -10,7 +10,7 @@ defmodule Example.Sender do
   def handle_init(_) do
     children = %{
       sink: %Membrane.ICE.Sink{
-        stun_servers: ['64.233.161.127:19302'],
+        stun_servers: ["64.233.161.127:19302"],
         controlling_mode: true
       }
     }
@@ -41,12 +41,14 @@ defmodule Example.Sender do
     Membrane.Logger.info("#{inspect(msg)}")
 
     state = Map.put(state, :stream_id, stream_id)
-    {{:ok, forward: {:sink, {:gather_candidates, stream_id}}}, state}
+    {{:ok, forward: {:sink, :generate_local_sdp}}, state}
   end
 
   @impl true
-  def handle_notification({:candidate_gathering_done, stream_id}, _from, _ctx, state) do
-    {{:ok, forward: {:sink, {:get_local_credentials, stream_id}}}, state}
+  def handle_notification({:local_sdp, _sdp} = msg, _from, _ctx, state) do
+    Membrane.Logger.info("#{inspect(msg)}")
+
+    {{:ok, forward: {:sink, {:gather_candidates, state.stream_id}}}, state}
   end
 
   @impl true

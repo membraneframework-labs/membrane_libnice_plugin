@@ -11,7 +11,7 @@ int parse_args(NiceAgent *agent, char **stun_servers, unsigned int stun_servers_
   if(res) {
     return res;
   }
-//  FIXME - this cannot be invoked here. Refer to #3
+//  FIXME - this cannot be invoked here. Refer to #4
 //  res = parse_turn_servers(agent, turn_servers, turn_servers_length);
 //  if(res) {
 //    return res;

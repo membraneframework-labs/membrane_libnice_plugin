@@ -57,15 +57,10 @@ defmodule Membrane.ICE.Source do
                 default: false,
                 description: "Refer to RFC 8445 section 4 - Controlling and Controlled Agent"
               ],
-              min_port: [
-                type: :unsigned,
-                default: 0,
-                description: "The minimum port to use"
-              ],
-              max_port: [
-                type: :unsigned,
-                default: 0,
-                description: "The maximum port to use"
+              port_range: [
+                type: :range,
+                default: 0..0,
+                description: "The port range to use"
               ]
 
   def_output_pad :output,
@@ -90,8 +85,7 @@ defmodule Membrane.ICE.Source do
       stun_servers: stun_servers,
       turn_servers: turn_servers,
       controlling_mode: controlling_mode,
-      min_port: min_port,
-      max_port: max_port
+      port_range: min_port..max_port
     } = options
 
     {:ok, cnode} = Unifex.CNode.start_link(:native)
