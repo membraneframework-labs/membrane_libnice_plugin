@@ -147,6 +147,10 @@ tags
 # Ignore all local history of files
 .history
 
+### IntelliJ ###
+.idea/*
+*.iml
+
 ### Windows ###
 # Windows thumbnail cache files
 Thumbs.db
