@@ -37,9 +37,9 @@ defmodule Membrane.ICE.Mixfile do
 
   defp deps do
     [
-      {:membrane_core, "~> 0.5.0"},
-      {:membrane_common_c, "~> 0.3.0"},
-      {:unifex, "~> 0.2.6"},
+      {:membrane_core, "~> 0.6.0"},
+      {:membrane_common_c, "~> 0.5.0"},
+      {:unifex, "~> 0.3.0"},
       {:ex_doc, "~> 0.22", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false}
     ]
