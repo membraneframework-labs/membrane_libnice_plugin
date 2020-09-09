@@ -2,7 +2,7 @@ version: 2.0
 jobs:
   build:
     docker:
-      - image: membrane/membrane:latest
+      - image: mickel8/membrane:libnice
         environment:
           MIX_ENV: test
 

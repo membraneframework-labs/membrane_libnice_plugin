@@ -2,24 +2,24 @@ defmodule Membrane.ICE.Mixfile do
   use Mix.Project
 
   @version "0.1.0"
-  @github_url "https://github.com/membraneframework/membrane_ice"
+  @github_url "https://github.com/membraneframework/membrane_ice_plugin"
 
   def project do
     [
-      app: :membrane_ice,
+      app: :membrane_ice_plugin,
       version: @version,
-      elixir: "~> 1.9",
+      elixir: "~> 1.10",
       compilers: [:unifex, :bundlex] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
 
       # hex
-      description: "Interactive Connectivity Establishment (ICE) implementation for Membrane Multimedia Framework",
+      description: "Membrane Multimedia Framework plugin for ICE",
       package: package(),
 
       # docs
-      name: "Membrane: ICE",
+      name: "Membrane ICE plugin",
       source_url: @github_url,
       homepage_url: "https://membraneframework.org",
       docs: docs()
@@ -41,7 +41,12 @@ defmodule Membrane.ICE.Mixfile do
       {:membrane_common_c, "~> 0.5.0"},
       {:unifex, "~> 0.3.0"},
       {:ex_doc, "~> 0.22", only: :dev, runtime: false},
-      {:dialyxir, "~> 1.0.0", only: :dev, runtime: false}
+      {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
+      {:membrane_element_file,
+       git: "https://github.com/membraneframework/membrane-element-file",
+       branch: "master",
+       only: :test},
+      {:membrane_element_hackney, "~> 0.2", only: :test}
     ]
   end
 
