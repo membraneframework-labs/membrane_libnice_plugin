@@ -37,15 +37,11 @@ defmodule Membrane.ICE.Mixfile do
 
   defp deps do
     [
-      {:membrane_core,
-       git: "https://github.com/membraneframework/membrane_core.git", override: true},
-      {:unifex, git: "https://github.com/membraneframework/unifex.git", override: true},
+      {:membrane_core, "~> 0.6.0", override: true},
+      {:unifex, "~> 0.3.1"},
       {:ex_doc, "~> 0.22", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
-      {:membrane_element_file,
-       git: "https://github.com/membraneframework/membrane-element-file",
-       branch: "master",
-       only: :test},
+      {:membrane_element_file, "~> 0.4.0", only: :test},
       {:membrane_element_hackney, "~> 0.2", only: :test}
     ]
   end
