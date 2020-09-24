@@ -47,11 +47,6 @@ defmodule Membrane.ICE.Source do
                 default: [],
                 description: "List of stun servers in form of ip:port"
               ],
-              turn_servers: [
-                type: [:string],
-                default: [],
-                description: "List of turn servers in form of ip:port:proto:username:passwd"
-              ],
               controlling_mode: [
                 type: :bool,
                 default: false,
@@ -72,10 +67,10 @@ defmodule Membrane.ICE.Source do
     @moduledoc false
 
     @type t :: %__MODULE__{
-            cnode: Unifex.CNode.t(),
+            ice: pid,
             connections: MapSet.t()
           }
-    defstruct cnode: nil,
+    defstruct ice: nil,
               connections: MapSet.new()
   end
 
@@ -83,24 +78,20 @@ defmodule Membrane.ICE.Source do
   def handle_init(%__MODULE__{} = options) do
     %__MODULE__{
       stun_servers: stun_servers,
-      turn_servers: turn_servers,
       controlling_mode: controlling_mode,
-      port_range: min_port..max_port
+      port_range: port_range
     } = options
 
-    {:ok, cnode} = Unifex.CNode.start_link(:native)
-
-    :ok =
-      Unifex.CNode.call(cnode, :init, [
-        stun_servers,
-        turn_servers,
-        controlling_mode,
-        min_port,
-        max_port
-      ])
+    {:ok, ice} =
+      ExLibnice.start_link(
+        parent: self(),
+        stun_servers: stun_servers,
+        controlling_mode: controlling_mode,
+        port_range: port_range
+      )
 
     state = %State{
-      cnode: cnode
+      ice: ice
     }
 
     {:ok, state}

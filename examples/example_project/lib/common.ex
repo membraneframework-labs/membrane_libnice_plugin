@@ -3,13 +3,11 @@ defmodule Example.Common do
 
   def handle_notification({:local_credentials, _credentials} = msg, _from, _ctx, state) do
     Membrane.Logger.info("#{inspect(msg)}")
-
     {:ok, state}
   end
 
   def handle_notification({:new_candidate_full, _candidate} = msg, _from, _ctx, state) do
     Membrane.Logger.info("#{inspect(msg)}")
-
     {:ok, state}
   end
 
@@ -20,7 +18,6 @@ defmodule Example.Common do
         state
       ) do
     Membrane.Logger.info("#{inspect(msg)}")
-
     {:ok, state}
   end
 
@@ -31,14 +28,12 @@ defmodule Example.Common do
         _state
       ) do
     Membrane.Logger.info("#{inspect(msg)}")
-
     new_state = %{:ready_component => {stream_id, component_id}}
     {:ok, new_state}
   end
 
   def handle_notification(notification, from, _ctx, state) do
     Membrane.Logger.warn("other notification: #{inspect(notification)}} from: #{inspect(from)}")
-
     {:ok, state}
   end
 end

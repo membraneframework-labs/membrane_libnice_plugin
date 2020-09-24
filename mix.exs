@@ -9,7 +9,6 @@ defmodule Membrane.ICE.Mixfile do
       app: :membrane_ice_plugin,
       version: @version,
       elixir: "~> 1.10",
-      compilers: [:unifex, :bundlex] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -38,7 +37,8 @@ defmodule Membrane.ICE.Mixfile do
   defp deps do
     [
       {:membrane_core, "~> 0.6.0", override: true},
-      {:unifex, "~> 0.3.1"},
+      {:unifex, git: "https://github.com/membraneframework/unifex.git"},
+      {:ex_libnice, git: "https://github.com/membraneframework/ex_libnice.git"},
       {:ex_doc, "~> 0.22", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
       {:membrane_element_file, "~> 0.4.0", only: :test},

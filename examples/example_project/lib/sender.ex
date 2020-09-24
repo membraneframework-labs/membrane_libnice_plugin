@@ -39,7 +39,6 @@ defmodule Example.Sender do
   @impl true
   def handle_notification({:stream_id, stream_id} = msg, _from, _ctx, state) do
     Membrane.Logger.info("#{inspect(msg)}")
-
     state = Map.put(state, :stream_id, stream_id)
     {{:ok, forward: {:sink, :generate_local_sdp}}, state}
   end
@@ -47,7 +46,6 @@ defmodule Example.Sender do
   @impl true
   def handle_notification({:local_sdp, _sdp} = msg, _from, _ctx, state) do
     Membrane.Logger.info("#{inspect(msg)}")
-
     {{:ok, forward: {:sink, {:gather_candidates, state.stream_id}}}, state}
   end
 
