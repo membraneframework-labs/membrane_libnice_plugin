@@ -56,6 +56,16 @@ defmodule Membrane.ICE.Source do
                 type: :range,
                 default: 0..0,
                 description: "The port range to use"
+              ],
+              handshake_module: [
+                type: :module,
+                default: nil,
+                description: "Module implementing Handshake behaviour"
+              ],
+              handshake_opts: [
+                type: :list,
+                default: [],
+                description: "opts for handshake"
               ]
 
   def_output_pad :output,
@@ -68,18 +78,36 @@ defmodule Membrane.ICE.Source do
 
     @type t :: %__MODULE__{
             ice: pid,
+            handshake: pid,
+            handshake_module: Handshake.t(),
+            handshake_state: :in_progress | :finished | :disabled,
             connections: MapSet.t()
           }
     defstruct ice: nil,
+              handshake: nil,
+              handshake_module: Handshake.Default,
+              handshake_state: :in_progress,
               connections: MapSet.new()
   end
 
   @impl true
-  def handle_init(%__MODULE__{} = options) do
+  def handle_init(%__MODULE__{handshake_module: Handshake.Default} = options) do
+    handle_init(options, :disabled)
+  end
+
+  @impl true
+  def handle_init(options) do
+    handle_init(options, :in_progress)
+  end
+
+
+  defp handle_init(options, handshake_state) do
     %__MODULE__{
       stun_servers: stun_servers,
       controlling_mode: controlling_mode,
-      port_range: port_range
+      port_range: port_range,
+      handshake_module: handshake_module,
+      handshake_opts: handshake_opts
     } = options
 
     {:ok, ice} =
@@ -90,9 +118,9 @@ defmodule Membrane.ICE.Source do
         port_range: port_range
       )
 
-    state = %State{
-      ice: ice
-    }
+    {:ok, handshake} = handshake_module.start_link(handshake_opts ++ [parent: self(), ice: ice])
+
+    state = %State{ice: ice, handshake: handshake, handshake_module: handshake_module, handshake_state: handshake_state}
 
     {:ok, state}
   end
@@ -115,8 +143,8 @@ defmodule Membrane.ICE.Source do
   def handle_other(
         {:ice_payload, stream_id, component_id, payload},
         %{playback_state: :playing} = ctx,
-        state
-      ) do
+        %State{handshake_state: handshake_state} = state
+      ) when handshake_state == :finished or handshake_state == :disabled do
     Membrane.Logger.debug("Received payload: #{Membrane.Payload.size(payload)} bytes")
 
     actions =
@@ -137,8 +165,31 @@ defmodule Membrane.ICE.Source do
   end
 
   @impl true
-  def handle_other({:component_state_ready, stream_id, component_id} = msg, _ctx, state) do
+  def handle_other(
+        {:ice_payload, _stream_id, _component_id, payload},
+        _ctx,
+        %State{handshake_state: :in_progress} = state
+      ) do
+    %State{handshake: handshake, handshake_module: handshake_module} = state
+    handshake_module.recv_from_peer(handshake, payload)
+    {:ok, state}
+  end
+
+  @impl true
+  def handle_other({:handshake_finished, _keying_material} = msg, _ctx, state) do
+    new_state = %State{state | handshake_state: :finished}
+    {{:ok, notify: msg}, new_state}
+  end
+
+  @impl true
+  def handle_other(
+        {:component_state_ready, stream_id, component_id} = msg,
+        _ctx,
+        %State{handshake: handshake, handshake_module: handshake_module} = state
+      ) do
     Membrane.Logger.debug("Component #{component_id} in stream #{stream_id} READY")
+
+    handshake_module.connection_ready(handshake, stream_id, component_id)
 
     new_connections = MapSet.put(state.connections, {stream_id, component_id})
     new_state = %State{state | connections: new_connections}

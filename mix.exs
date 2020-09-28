@@ -39,6 +39,7 @@ defmodule Membrane.ICE.Mixfile do
       {:membrane_core, "~> 0.6.0", override: true},
       {:unifex, git: "https://github.com/membraneframework/unifex.git"},
       {:ex_libnice, git: "https://github.com/membraneframework/ex_libnice.git"},
+      {:elixir_dtls, path: "/home/michal/Repos/membrane/elixir_dtls"},
       {:ex_doc, "~> 0.22", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
       {:membrane_element_file, "~> 0.4.0", only: :test},

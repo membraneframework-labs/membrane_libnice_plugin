@@ -10,12 +10,14 @@ defmodule Membrane.ICE.IntegrationTest do
   test "ice-trickle" do
     {:ok, tx_pid} =
       Testing.Pipeline.start_link(%Testing.Pipeline.Options{
-        module: Membrane.ICE.Support.TestSender
+        module: Membrane.ICE.Support.TestSender,
+        custom_args: [handshake_module: Handshake.Default, handshake_opts: []]
       })
 
     {:ok, rx_pid} =
       Testing.Pipeline.start_link(%Testing.Pipeline.Options{
-        module: Membrane.ICE.Support.TestReceiver
+        module: Membrane.ICE.Support.TestReceiver,
+        custom_args: [handshake_module: Handshake.Default, handshake_opts: []]
       })
 
     # setup sink
@@ -46,7 +48,65 @@ defmodule Membrane.ICE.IntegrationTest do
     Testing.Pipeline.play(rx_pid)
     Testing.Pipeline.play(tx_pid)
 
-    :timer.sleep(2000)
+    :timer.sleep(1000)
+
+    assert File.exists?(@file_path)
+
+    %{size: size} = File.stat!(@file_path)
+    assert size > 140_000
+  end
+
+  test "ice-trickle with dtls-srtp" do
+    {:ok, tx_pid} =
+      Testing.Pipeline.start_link(%Testing.Pipeline.Options{
+        module: Membrane.ICE.Support.TestSender,
+        custom_args: [
+          handshake_module: Handshake.DTLS,
+          handshake_opts: [client_mode: true, dtls_srtp: true]
+        ]
+      })
+
+    {:ok, rx_pid} =
+      Testing.Pipeline.start_link(%Testing.Pipeline.Options{
+        module: Membrane.ICE.Support.TestReceiver,
+        custom_args: [
+          handshake_module: Handshake.DTLS,
+          handshake_opts: [client_mode: false, dtls_srtp: true]
+        ]
+      })
+
+    # setup sink
+    Testing.Pipeline.message_child(tx_pid, :sink, {:add_stream, 1})
+    assert_pipeline_notified(tx_pid, :sink, {:stream_id, tx_stream_id})
+    Testing.Pipeline.message_child(tx_pid, :sink, {:get_local_credentials, tx_stream_id})
+    assert_pipeline_notified(tx_pid, :sink, {:local_credentials, tx_credentials})
+
+    # setup source
+    Testing.Pipeline.message_child(rx_pid, :source, {:add_stream, 1})
+    assert_pipeline_notified(rx_pid, :source, {:stream_id, rx_stream_id})
+    Testing.Pipeline.message_child(rx_pid, :source, {:get_local_credentials, rx_stream_id})
+    assert_pipeline_notified(rx_pid, :source, {:local_credentials, rx_credentials})
+
+    # set credentials
+    cred_msg = {:set_remote_credentials, rx_credentials, tx_stream_id}
+    Testing.Pipeline.message_child(tx_pid, :sink, cred_msg)
+
+    cred_msg = {:set_remote_credentials, tx_credentials, rx_stream_id}
+    Testing.Pipeline.message_child(rx_pid, :source, cred_msg)
+
+    # start connectivity checks
+    Testing.Pipeline.message_child(tx_pid, :sink, {:gather_candidates, tx_stream_id})
+    Testing.Pipeline.message_child(rx_pid, :source, {:gather_candidates, rx_stream_id})
+    set_remote_candidates(tx_pid, rx_pid, tx_stream_id, rx_stream_id)
+
+    # send and receive data
+    Testing.Pipeline.play(rx_pid)
+    Testing.Pipeline.play(tx_pid)
+
+    assert_pipeline_notified(tx_pid, :sink, {:handshake_finished, data})
+    assert_pipeline_notified(rx_pid, :source, {:handshake_finished, data})
+
+    :timer.sleep(1000)
 
     assert File.exists?(@file_path)
 
