@@ -1,20 +1,20 @@
-# Membrane Multimedia Framework: Interactive Connectivity Establishment (ICE) Implementation
+# Membrane Multimedia Framework: Interactive Connectivity Establishment (ICE) Plugin
 
 [![Hex.pm](https://img.shields.io/hexpm/v/membrane_ice_plugin.svg)](https://hex.pm/packages/membrane_ice_plugin)
 [![CircleCI](https://circleci.com/gh/membraneframework/membrane_ice_plugin.svg?style=svg)](https://circleci.com/gh/membraneframework/membrane_ice_plugin)
 
-This package provides a wrapper over [libnice] and GStreamer-style ICE source & sink elements.
+This package uses [elixir_libnice] to provide GStreamer-style ICE source & sink elements.
 
 It is part of [Membrane Multimedia Framework](https://membraneframework.org).
 
 ## Installation
 
-The package can be installed by adding `membrane_ice` to your list of dependencies in `mix.exs`:
+The package can be installed by adding `membrane_ice_plugin` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:membrane_ice, "~> 0.1.0"}
+    {:membrane_ice_plugin, "~> 0.1.0"}
   ]
 end
 ```
@@ -34,3 +34,4 @@ Copyright 2020, [Software Mansion](https://swmansion.com/?utm_source=git&utm_med
 Licensed under the [Apache License, Version 2.0](LICENSE)
 
 [libnice]: https://libnice.freedesktop.org/
+[elixir_libnice]: https://github.com/membraneframework/elixir_libnice

@@ -21,116 +21,98 @@ defmodule Membrane.ICE.Sink do
   Interacting with Sink is held by sending it proper messages. Some of them are synchronous i.e.
   the result is returned immediately while other are asynchronous i.e. Sink will notify us about
   result after completing some work.
-  Below there are described messages that can be send to Sink and by Sink.
+  Below there are listed messages that can be send to Sink and by Sink. As these messages are
+  analogous to those sent by `ExLibnice` library please refer to its documentation for
+  more details.
 
   ### Messages Sink is able to process
 
   Each result that Sink produces is conveyed to the pipeline/bin as notification. Below there are
-  described messages Sink is able process:
+  listed messages Sink is able process:
 
-  - `{:add_stream, n_components}` - add streams with `n_components`.
+  - `{:add_stream, n_components}`
 
     Result notifications:
-    - `{:stream_id, stream_id}` - `stream_id` indicates new stream id.
+    - `{:stream_id, stream_id}`
     - `{:error, :failed_to_add_stream}`
     - `{:error, :failed_to_attach_recv}`
 
-  - `{:add_stream, n_components, name}` - same as above but additionally sets name for the new stream.
+  - `{:add_stream, n_components, name}`
 
     Result notifications:
-    - `{:stream_id, stream_id}` - `stream_id` indicates new stream id.
+    - `{:stream_id, stream_id}`
     - `{:error, :failed_to_add_stream}`
-    - `{:error, :invalid_stream_or_duplicate_name}` - in case of named stream. In fact this error
-    always should be related with duplicated stream name.
+    - `{:error, :invalid_stream_or_duplicate_name}`
     - `{:error, :failed_to_attach_recv}`
 
-  - `{:remove_stream, stream_id}` - removes stream with `stream_id` if exists.
+  - `{:remove_stream, stream_id}`
 
     Result notifications: none.
 
-  - `:generate_local_sdp` - generates a SDP string containing the local candidates and credentials for all streams and
-  components. Notice that local candidates will be present in the result SDP only if
-  `{:gather_candidates, stream_id}` message has been sent previously.
+  - `:generate_local_sdp`
 
     Result notifications:
-    - `{:local_sdp, sdp}` - it is important that returned SDP will not contain
-    any codec lines and the 'm' line will not list any payload types. If the stream was created
-    without the name the `m` line will contain `-` mark instead. There will not also be `o` field.
-    Please refer to `libnice` documentation for `nice_agent_generate_local_sdp` function.
+    - `{:local_sdp, sdp}`
 
-  - `{:parse_remote_sdp, remote_sdp}` - parses a remote SDP string setting credentials and
-  remote candidates for proper streams and components. It is important that `m` line does not
-  contain `-` mark but name of the stream.
+  - `{:parse_remote_sdp, remote_sdp}`
 
     Result notifications:
     - `{:parse_remote_sdp_ok, added_cand_num}`
 
-  - `{:get_local_credentials, stream_id}` - returns local credentials for stream with id `stream_id`.
+  - `{:get_local_credentials, stream_id}`
 
     Result notifications:
-    - `{:local_credentials, credentials}` - credentials are in form of `'ufrag pwd'`
+    - `{:local_credentials, credentials}`
 
-  - `{:set_remote_credentials, credentials, stream_id}` - sets remote credentials for stream with
-  `stream_id`. Credentials has to be passed in form of `'ufrag pwd'`.
+  - `{:set_remote_credentials, credentials, stream_id}`
 
     Result notifications:
     - none in case of success
 
-  - `{:gather_candidates, stream_id}` - starts gathering candidates process for stream with id
-  `stream_id`.
+  - `{:gather_candidates, stream_id}`
 
     Result notifications:
      - none in case of success
 
-  - `{:peer_candidate_gathering_done, stream_id}` - indicates that all remote candidates for stream
-  with id `stream_id` have been passed. After receiving this message components can change
-  their state to `FAILED` if all their connectivity checks have failed. Not sending this
-  message will cause components stay in `CONNECTING` state. (In fact there is a bug and components
-  can change their state to `FAILED` even without sending this message. Please refer to
-  [#120](https://gitlab.freedesktop.org/libnice/libnice/-/issues/120.)
+  - `{:peer_candidate_gathering_done, stream_id}`
 
     Result notifications:
     - none in case of success
     - `{:error, :stream_not_found}`
 
-  - `{:set_remote_candidate, candidate, stream_id, component_id}` - sets remote candidate for
-  component with id `component_id` in stream with id `stream_id`. Candidate has to be passed as
-  SDP string.
+  - `{:set_remote_candidate, candidate, stream_id, component_id}`
 
     Result notifications:
     - none in case of success
     - `{:error, :failed_to_parse_sdp_string}`
-    - `{:error, :failed_to_set}` - memory allocation error or invalid component
+    - `{:error, :failed_to_set}`
 
   ### Messages Sink sends
 
   Sending some messages to Sink can cause it will start performing some work. Below there are
-  described messages that Sink can send:
+  listed messages that Sink can send:
 
-  - `{:new_candidate_full, candidate}` - new local candidate.
-
-    Triggered by: `{:gather_candidates, stream_id}`
-
-  - `{:new_remote_candidate_full, candidate}` - new remote (prflx) candidate.
-
-    Triggered by: `{:set_remote_candidate, candidate, stream_id, component_id}`
-
-  - `{:candidate_gathering_done, stream_id}` - gathering candidates for stream with `stream_id`
-  has been done
+  - `{:new_candidate_full, candidate}`
 
     Triggered by: `{:gather_candidates, stream_id}`
 
-  - `{:new_selected_pair, stream_id, component_id, lfoundation, rfoundation}` - new selected pair.
+  - `{:new_remote_candidate_full, candidate}`
 
     Triggered by: `{:set_remote_candidate, candidate, stream_id, component_id}`
 
-  - `{:component_state_failed, stream_id, component_id}` - component with id `component_id` in stream
-  with id `stream_id` has changed state to FAILED.
+  - `{:candidate_gathering_done, stream_id}`
+
+    Triggered by: `{:gather_candidates, stream_id}`
+
+  - `{:new_selected_pair, stream_id, component_id, lfoundation, rfoundation}`
 
     Triggered by: `{:set_remote_candidate, candidate, stream_id, component_id}`
 
-  - `{:component_state_ready, stream_id, component_id}` - component with id `component_id` in stream
-  with id `stream_id` has changed state to READY i.e. it is ready to receive and send data.
+  - `{:component_state_failed, stream_id, component_id}`
+
+    Triggered by: `{:set_remote_candidate, candidate, stream_id, component_id}`
+
+  - `{:component_state_ready, stream_id, component_id}`
 
     Triggered by: `{:set_remote_candidate, candidate, stream_id, component_id}`
 
@@ -154,11 +136,6 @@ defmodule Membrane.ICE.Sink do
                 default: [],
                 description: "List of stun servers in form of ip:port"
               ],
-              turn_servers: [
-                type: [:string],
-                default: [],
-                description: "List of turn servers in form of ip:port:proto:username:passwd"
-              ],
               controlling_mode: [
                 type: :bool,
                 default: false,
@@ -180,10 +157,10 @@ defmodule Membrane.ICE.Sink do
     @moduledoc false
 
     @type t :: %__MODULE__{
-            cnode: Unifex.CNode.t(),
+            ice: pid,
             connections: MapSet.t()
           }
-    defstruct cnode: nil,
+    defstruct ice: nil,
               connections: MapSet.new()
   end
 
@@ -191,25 +168,19 @@ defmodule Membrane.ICE.Sink do
   def handle_init(%__MODULE__{} = options) do
     %__MODULE__{
       stun_servers: stun_servers,
-      turn_servers: turn_servers,
       controlling_mode: controlling_mode,
-      port_range: min_port..max_port
+      port_range: port_range
     } = options
 
-    {:ok, cnode} = Unifex.CNode.start_link(:native)
+    {:ok, pid} =
+      ExLibnice.start_link(
+        parent: self(),
+        stun_servers: stun_servers,
+        controlling_mode: controlling_mode,
+        port_range: port_range
+      )
 
-    :ok =
-      Unifex.CNode.call(cnode, :init, [
-        stun_servers,
-        turn_servers,
-        controlling_mode,
-        min_port,
-        max_port
-      ])
-
-    state = %State{
-      cnode: cnode
-    }
+    state = %State{ice: pid}
 
     {:ok, state}
   end
@@ -246,20 +217,17 @@ defmodule Membrane.ICE.Sink do
         Pad.ref(:input, {stream_id, component_id}) = pad,
         %Buffer{payload: payload},
         _context,
-        %{cnode: cnode} = state
+        %{ice: ice} = state
       ) do
     payload_size = Membrane.Payload.size(payload)
 
-    case Unifex.CNode.call(cnode, :send_payload, [stream_id, component_id, payload]) do
+    case ExLibnice.send_payload(ice, stream_id, component_id, payload) do
       :ok ->
         Membrane.Logger.debug("Sent payload: #{payload_size} bytes")
-
         {{:ok, demand: pad}, state}
 
       {:error, cause} ->
-        Membrane.Logger.warn("Couldn't send payload: #{inspect(cause)}")
-
-        {{:ok, notify: {:could_not_send_payload, payload_size}}, state}
+        {{:ok, notify: {:could_not_send_payload, cause}}, state}
     end
   end
 end
