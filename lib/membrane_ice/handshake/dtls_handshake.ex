@@ -31,7 +31,13 @@ defmodule Handshake.DTLS do
         dtls_srtp: opts[:dtls_srtp]
       )
 
-    {:ok, %{:parent => opts[:parent], :dtls => dtls, ice: opts[:ice]}}
+    {:ok,
+     %{
+       :parent => opts[:parent],
+       :dtls => dtls,
+       :ice => opts[:ice],
+       :component_id => opts[:component_id]
+     }}
   end
 
   @impl GenServer
@@ -59,8 +65,11 @@ defmodule Handshake.DTLS do
   end
 
   @impl GenServer
-  def handle_info({:handshake_finished, _keying_material} = msg, %{parent: parent} = state) do
-    send(parent, msg)
+  def handle_info(
+        {:handshake_finished, keying_material},
+        %{parent: parent, component_id: component_id} = state
+      ) do
+    send(parent, {:handshake_finished, component_id, keying_material})
     {:noreply, state}
   end
 
