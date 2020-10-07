@@ -1,5 +1,4 @@
 defmodule Handshake do
-
   @type t :: module
 
   @callback start_link(opts :: term) :: {:ok, pid}
