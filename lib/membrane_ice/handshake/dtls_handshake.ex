@@ -9,11 +9,11 @@ defmodule Membrane.ICE.Handshake.DTLS do
 
   Please refer to `ExDTLS` library documentation for meaning of these fields.
   """
+  @behaviour Membrane.ICE.Handshake
+
   use GenServer
 
   alias Membrane.ICE.Handshake
-
-  @behaviour Handshake
 
   require Membrane.Logger
 
