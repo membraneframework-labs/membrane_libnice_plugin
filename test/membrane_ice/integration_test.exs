@@ -4,6 +4,7 @@ defmodule Membrane.ICE.IntegrationTest do
   import Membrane.Testing.Assertions
 
   alias Membrane.Testing
+  alias Membrane.ICE.Handshake
 
   @file_path "./ice-recv.h264"
 

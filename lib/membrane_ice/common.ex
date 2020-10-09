@@ -6,7 +6,28 @@ defmodule Membrane.ICE.Common do
   require Unifex.CNode
   require Membrane.Logger
 
-  def handle_ice_message(:generate_local_sdp, _ctx, %{ice: ice} = state) do
+  defmodule State do
+    @moduledoc false
+
+    @type handshake_state :: :in_progress | :finished | :disabled
+    @type handshake_data :: term()
+    @type component_id :: integer()
+
+    @type t :: %__MODULE__{
+            ice: pid(),
+            stream_id: integer(),
+            handshakes: %{component_id() => {pid, handshake_state, handshake_data}},
+            handshake_module: Handshake.t(),
+            connections: MapSet.t()
+          }
+    defstruct ice: nil,
+              stream_id: nil,
+              handshakes: %{},
+              handshake_module: Handshake.Default,
+              connections: MapSet.new()
+  end
+
+  def handle_ice_message(:generate_local_sdp, _ctx, %State{ice: ice} = state) do
     {:ok, local_sdp} = ExLibnice.generate_local_sdp(ice)
 
     # the version of the SDP protocol. RFC 4566 defines only v=0 - section 5.1
@@ -17,7 +38,7 @@ defmodule Membrane.ICE.Common do
     {{:ok, notify: {:local_sdp, local_sdp}}, state}
   end
 
-  def handle_ice_message({:parse_remote_sdp, sdp}, _ctx, %{ice: ice} = state) do
+  def handle_ice_message({:parse_remote_sdp, sdp}, _ctx, %State{ice: ice} = state) do
     case ExLibnice.parse_remote_sdp(ice, sdp) do
       {:ok, added_cand_num} ->
         {{:ok, notify: {:parse_remote_sdp_ok, added_cand_num}}, state}
@@ -27,7 +48,11 @@ defmodule Membrane.ICE.Common do
     end
   end
 
-  def handle_ice_message(:get_local_credentials, _ctx, %{ice: ice, stream_id: stream_id} = state) do
+  def handle_ice_message(
+        :get_local_credentials,
+        _ctx,
+        %State{ice: ice, stream_id: stream_id} = state
+      ) do
     case ExLibnice.get_local_credentials(ice, stream_id) do
       {:ok, credentials} -> {{:ok, notify: {:local_credentials, credentials}}, state}
       {:error, cause} -> {{:error, cause}, state}
@@ -43,7 +68,7 @@ defmodule Membrane.ICE.Common do
     {result, state}
   end
 
-  def handle_ice_message(:gather_candidates, _ctx, %{ice: ice, stream_id: stream_id} = state) do
+  def handle_ice_message(:gather_candidates, _ctx, %State{ice: ice, stream_id: stream_id} = state) do
     case ExLibnice.gather_candidates(ice, stream_id) do
       :ok -> {:ok, state}
       {:error, cause} -> {{:error, cause}, state}
@@ -53,7 +78,7 @@ defmodule Membrane.ICE.Common do
   def handle_ice_message(
         :peer_candidate_gathering_done,
         _ctx,
-        %{ice: ice, stream_id: stream_id} = state
+        %State{ice: ice, stream_id: stream_id} = state
       ) do
     case ExLibnice.peer_candidate_gathering_done(ice, stream_id) do
       :ok -> {:ok, state}
@@ -64,7 +89,7 @@ defmodule Membrane.ICE.Common do
   def handle_ice_message(
         {:set_remote_candidate, candidate, component_id},
         _ctx,
-        %{ice: ice, stream_id: stream_id} = state
+        %State{ice: ice, stream_id: stream_id} = state
       ) do
     case ExLibnice.set_remote_candidate(ice, candidate, stream_id, component_id) do
       :ok -> {:ok, state}
@@ -100,6 +125,52 @@ defmodule Membrane.ICE.Common do
 
   def handle_ice_message({:component_state_failed, _stream_id, _component_id}, _ctx, state) do
     {:ok, state}
+  end
+
+  def handle_ice_message({:ice_payload, _stream_id, component_id, payload}, _ctx, state) do
+    %State{
+      handshakes: %{^component_id => {pid, :in_progress, _handshake_data}},
+      handshake_module: handshake_module
+    } = state
+
+    handshake_module.recv_from_peer(pid, payload)
+    {:ok, state}
+  end
+
+  def handle_ice_message({:component_state_ready, _stream_id, component_id}, _ctx, state) do
+    Membrane.Logger.debug("Component #{component_id} READY")
+
+    %State{
+      handshakes: handshakes,
+      handshake_module: handshake_module
+    } = state
+
+    {pid, handshake_state, handshake_data} = Map.get(handshakes, component_id)
+
+    new_connections = MapSet.put(state.connections, component_id)
+    new_state = %State{state | connections: new_connections}
+
+    if handshake_state == :finished do
+      {{:ok, notify: {:component_state_ready, component_id, handshake_data}}, new_state}
+    else
+      handshake_module.connection_ready(pid)
+      {:ok, new_state}
+    end
+  end
+
+  def handle_ice_message({:handshake_finished, component_id, handshake_data}, _ctx, state) do
+    %State{
+      handshakes: %{^component_id => {dtls_pid, _handshake_state, _handshake_data}} = handshakes
+    } = state
+
+    handshakes = Map.put(handshakes, component_id, {dtls_pid, :finished, handshake_data})
+    new_state = %State{state | handshakes: handshakes}
+
+    if MapSet.member?(state.connections, component_id) do
+      {{:ok, notify: {:component_state_ready, component_id, handshake_data}}, new_state}
+    else
+      {:ok, state}
+    end
   end
 
   def handle_ice_message(msg, _ctx, state) do

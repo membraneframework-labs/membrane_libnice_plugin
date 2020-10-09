@@ -1,5 +1,10 @@
-defmodule Handshake.Default do
-  @behaviour Handshake
+defmodule Membrane.ICE.Handshake.Default do
+  @moduledoc """
+  Module by default used in Sink/Source for performing handshake. It does nothing so no handshake
+  is in fact performed.
+  """
+
+  @behaviour Membrane.ICE.Handshake
 
   @impl true
   def start_link(_opts) do
@@ -7,7 +12,7 @@ defmodule Handshake.Default do
   end
 
   @impl true
-  def connection_ready(_pid, _stream_id, _component_id) do
+  def connection_ready(_pid) do
     :ok
   end
 

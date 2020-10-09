@@ -1,5 +1,17 @@
-defmodule Handshake.DTLS do
+defmodule Membrane.ICE.Handshake.DTLS do
+  @moduledoc """
+  Module responsible for performing DTLS and DTLS-SRTP handshake.
+
+  As `handshake_opts` in Sink/Source there should be passed keyword list containing following
+  fields:
+  * client_mode :: boolean()
+  * dtls_srtp :: boolean()
+
+  Please refer to `ExDTLS` library documentation for meaning of these fields.
+  """
   use GenServer
+
+  alias Membrane.ICE.Handshake
 
   @behaviour Handshake
 
@@ -12,8 +24,8 @@ defmodule Handshake.DTLS do
   end
 
   @impl Handshake
-  def connection_ready(pid, stream_id, component_id) do
-    GenServer.call(pid, {:connection_ready, stream_id, component_id})
+  def connection_ready(pid) do
+    GenServer.call(pid, :connection_ready)
   end
 
   @impl Handshake
@@ -36,16 +48,15 @@ defmodule Handshake.DTLS do
        :parent => opts[:parent],
        :dtls => dtls,
        :ice => opts[:ice],
+       :stream_id => opts[:stream_id],
        :component_id => opts[:component_id]
      }}
   end
 
   @impl GenServer
-  def handle_call({:connection_ready, stream_id, component_id}, _from, %{dtls: dtls} = state) do
+  def handle_call(:connection_ready, _from, %{dtls: dtls} = state) do
     :ok = ExDTLS.do_handshake(dtls)
-    new_state = Map.put(state, :stream_id, stream_id)
-    new_state = Map.put(new_state, :component_id, component_id)
-    {:reply, :ok, new_state}
+    {:reply, :ok, state}
   end
 
   @impl GenServer
@@ -75,7 +86,7 @@ defmodule Handshake.DTLS do
 
   @impl GenServer
   def handle_info(msg, state) do
-    Membrane.Logger.debug("Unknown msg: #{inspect(msg)}, #{inspect(state)}")
+    Membrane.Logger.debug("Unknown msg: #{inspect(msg)}")
     {:noreply, state}
   end
 end
