@@ -21,7 +21,7 @@ end
 
 ## Usage
 
-See [example_project](examples/example_project) for example usage or refer to
+See [example_project] for example usage or refer to
 [hex.pm](https://hex.pm/packages/membrane_ice_plugin) for more details about how to interact with
 Sink and Source.
 
@@ -35,3 +35,4 @@ Licensed under the [Apache License, Version 2.0](LICENSE)
 
 [libnice]: https://libnice.freedesktop.org/
 [elixir_libnice]: https://github.com/membraneframework/elixir_libnice
+[example_project]: https://github.com/membraneframework/membrane_ice_plugin/tree/master/examples/example_project

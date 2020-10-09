@@ -20,7 +20,7 @@ defmodule Membrane.ICE.Handshake do
   * stream_id :: integer() - id of stream for which this function is called
   * component_id :: integer() - id of component for which this module will perform handshake
   """
-  @callback start_link(opts :: List.t()) :: {:ok, pid}
+  @callback start_link(opts :: list()) :: {:ok, pid}
 
   @doc """
   Called only once when component is in the READY state i.e. it is able to receive and send data.
