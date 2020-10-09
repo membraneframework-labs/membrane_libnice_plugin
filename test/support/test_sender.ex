@@ -1,4 +1,6 @@
 defmodule Membrane.ICE.Support.TestSender do
+  @moduledoc false
+
   use Membrane.Pipeline
 
   alias Membrane.Element.Hackney

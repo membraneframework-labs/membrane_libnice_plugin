@@ -1,4 +1,6 @@
 defmodule Membrane.ICE.Support.TestReceiver do
+  @moduledoc false
+
   use Membrane.Pipeline
 
   alias Membrane.Element.File

@@ -116,12 +116,12 @@ defmodule Membrane.ICE.Sink do
 
   use Membrane.Sink
 
-  require Unifex.CNode
-  require Membrane.Logger
-
   alias Membrane.Buffer
   alias Membrane.ICE.Common
   alias Membrane.ICE.Handshake
+
+  require Unifex.CNode
+  require Membrane.Logger
 
   def_options n_components: [
                 type: :integer,
@@ -166,10 +166,12 @@ defmodule Membrane.ICE.Sink do
     mode: :pull,
     demand_unit: :buffers
 
+  @impl true
   def handle_init(%__MODULE__{handshake_module: Handshake.Default} = options) do
     handle_init(options, :finished)
   end
 
+  @impl true
   def handle_init(options) do
     handle_init(options, :in_progress)
   end
@@ -232,6 +234,7 @@ defmodule Membrane.ICE.Sink do
     end
   end
 
+  @impl true
   def handle_write(
         Pad.ref(:input, component_id) = pad,
         %Buffer{payload: payload},

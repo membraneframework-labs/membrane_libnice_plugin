@@ -43,6 +43,7 @@ defmodule Membrane.ICE.Mixfile do
        git: "https://github.com/membraneframework/elixir_dtls.git", branch: "develop"},
       {:ex_doc, "~> 0.22", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
+      {:credo, "~> 1.4", only: :dev, runtime: false},
       {:membrane_element_file, "~> 0.4.0", only: :test},
       {:membrane_element_hackney, "~> 0.2", only: :test}
     ]
