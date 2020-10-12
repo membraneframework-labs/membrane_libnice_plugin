@@ -16,12 +16,14 @@ defmodule Membrane.ICE.Common do
 
     @type t :: %__MODULE__{
             ice: pid(),
+            controlling_mode: boolean(),
             stream_id: integer(),
             handshakes: %{component_id() => {pid, handshake_state, handshake_data}},
             handshake_module: Handshake.t(),
             connections: MapSet.t()
           }
     defstruct ice: nil,
+              controlling_mode: false,
               stream_id: nil,
               handshakes: %{},
               handshake_module: Handshake.Default,
@@ -124,21 +126,37 @@ defmodule Membrane.ICE.Common do
     {{:ok, notify: {:new_selected_pair, component_id, lfoundation, rfoundation}}, state}
   end
 
-  def handle_ice_message({:component_state_failed, _stream_id, _component_id}, _ctx, state) do
+  def handle_ice_message({:component_state_failed, _stream_id, component_id}, _ctx, state) do
+    Membrane.Logger.warn("Component #{component_id} state FAILED")
     {:ok, state}
   end
 
-  def handle_ice_message({:ice_payload, _stream_id, component_id, payload}, _ctx, state) do
+  def handle_ice_message({:ice_payload, stream_id, component_id, payload}, _ctx, state) do
     %State{
-      handshakes: %{^component_id => {pid, :in_progress, _handshake_data}},
+      ice: ice,
+      handshakes: %{^component_id => {dtls_pid, _handshake_state, _handshake_data}} = handshakes,
       handshake_module: handshake_module
     } = state
 
-    handshake_module.recv_from_peer(pid, payload)
-    {:ok, state}
+    case handshake_module.recv_from_peer(dtls_pid, payload) do
+      {:ok, packets} ->
+        ExLibnice.send_payload(ice, stream_id, component_id, packets)
+        {:ok, state}
+
+      {:finished_with_packets, handshake_data, packets} ->
+        ExLibnice.send_payload(ice, stream_id, component_id, packets)
+        update_state_and_return(component_id, dtls_pid, handshake_data, handshakes, state)
+
+      {:finished, handshake_data} ->
+        update_state_and_return(component_id, dtls_pid, handshake_data, handshakes, state)
+    end
   end
 
-  def handle_ice_message({:component_state_ready, _stream_id, component_id}, _ctx, state) do
+  def handle_ice_message(
+        {:component_state_ready, stream_id, component_id},
+        _ctx,
+        %State{ice: ice, controlling_mode: controlling_mode} = state
+      ) do
     Membrane.Logger.debug("Component #{component_id} READY")
 
     %State{
@@ -154,23 +172,12 @@ defmodule Membrane.ICE.Common do
     if handshake_state == :finished do
       {{:ok, notify: {:component_state_ready, component_id, handshake_data}}, new_state}
     else
-      handshake_module.connection_ready(pid)
+      if controlling_mode do
+        {:ok, packets} = handshake_module.connection_ready(pid)
+        ExLibnice.send_payload(ice, stream_id, component_id, packets)
+      end
+
       {:ok, new_state}
-    end
-  end
-
-  def handle_ice_message({:handshake_finished, component_id, handshake_data}, _ctx, state) do
-    %State{
-      handshakes: %{^component_id => {dtls_pid, _handshake_state, _handshake_data}} = handshakes
-    } = state
-
-    handshakes = Map.put(handshakes, component_id, {dtls_pid, :finished, handshake_data})
-    new_state = %State{state | handshakes: handshakes}
-
-    if MapSet.member?(state.connections, component_id) do
-      {{:ok, notify: {:component_state_ready, component_id, handshake_data}}, new_state}
-    else
-      {:ok, state}
     end
   end
 
@@ -178,5 +185,16 @@ defmodule Membrane.ICE.Common do
     Membrane.Logger.warn("Unknown message #{inspect(msg)}")
 
     {:ok, state}
+  end
+
+  defp update_state_and_return(component_id, dtls_pid, handshake_data, handshakes, state) do
+    handshakes = Map.put(handshakes, component_id, {dtls_pid, :finished, handshake_data})
+    new_state = %State{state | handshakes: handshakes}
+
+    if MapSet.member?(state.connections, component_id) do
+      {{:ok, notify: {:component_state_ready, component_id, handshake_data}}, new_state}
+    else
+      {:ok, new_state}
+    end
   end
 end

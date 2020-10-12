@@ -103,18 +103,16 @@ defmodule Membrane.ICE.Source do
 
     case ExLibnice.add_stream(ice, n_components, stream_name) do
       {:ok, stream_id} ->
-        handshake_opts = handshake_opts ++ [parent: self(), ice: ice, stream_id: stream_id]
-
         handshakes =
           1..n_components
           |> Enum.reduce(%{}, fn component_id, acc ->
-            handshake_opts = handshake_opts ++ [component_id: component_id]
             {:ok, pid} = handshake_module.start_link(handshake_opts)
             Map.put(acc, component_id, {pid, handshake_state, nil})
           end)
 
         state = %Common.State{
           ice: ice,
+          controlling_mode: controlling_mode,
           stream_id: stream_id,
           handshakes: handshakes,
           handshake_module: handshake_module

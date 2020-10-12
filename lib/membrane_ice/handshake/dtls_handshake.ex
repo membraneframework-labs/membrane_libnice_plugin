@@ -38,55 +38,22 @@ defmodule Membrane.ICE.Handshake.DTLS do
   def init(opts) do
     {:ok, dtls} =
       ExDTLS.start_link(
-        parent: self(),
         client_mode: opts[:client_mode],
         dtls_srtp: opts[:dtls_srtp]
       )
 
-    {:ok,
-     %{
-       :parent => opts[:parent],
-       :dtls => dtls,
-       :ice => opts[:ice],
-       :stream_id => opts[:stream_id],
-       :component_id => opts[:component_id]
-     }}
+    {:ok, %{:dtls => dtls}}
   end
 
   @impl GenServer
   def handle_call(:connection_ready, _from, %{dtls: dtls} = state) do
-    :ok = ExDTLS.do_handshake(dtls)
-    {:reply, :ok, state}
+    {:ok, packets} = ExDTLS.do_handshake(dtls)
+    {:reply, {:ok, packets}, state}
   end
 
   @impl GenServer
   def handle_call({:recv_from_peer, data}, _from, %{dtls: dtls} = state) do
-    :ok = ExDTLS.feed(dtls, data)
-    {:reply, :ok, state}
-  end
-
-  @impl GenServer
-  def handle_info(
-        {:packets, payload},
-        %{ice: ice, stream_id: stream_id, component_id: component_id} = state
-      ) do
-    Membrane.Logger.debug("Send payload #{inspect(payload)}")
-    :ok = ExLibnice.send_payload(ice, stream_id, component_id, payload)
-    {:noreply, state}
-  end
-
-  @impl GenServer
-  def handle_info(
-        {:handshake_finished, keying_material},
-        %{parent: parent, component_id: component_id} = state
-      ) do
-    send(parent, {:handshake_finished, component_id, keying_material})
-    {:noreply, state}
-  end
-
-  @impl GenServer
-  def handle_info(msg, state) do
-    Membrane.Logger.debug("Unknown msg: #{inspect(msg)}")
-    {:noreply, state}
+    msg = ExDTLS.do_handshake(dtls, data)
+    {:reply, msg, state}
   end
 end
