@@ -39,7 +39,6 @@ defmodule Membrane.ICE.Mixfile do
       {:membrane_core, "~> 0.6.0", override: true},
       {:unifex, git: "https://github.com/membraneframework/unifex.git"},
       {:ex_libnice, git: "https://github.com/membraneframework/ex_libnice.git"},
-      {:ex_dtls, git: "https://github.com/membraneframework/ex_dtls.git", branch: "develop"},
       {:ex_doc, "~> 0.22", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
       {:credo, "~> 1.4", only: :dev, runtime: false},
