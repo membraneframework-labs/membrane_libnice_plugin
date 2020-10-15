@@ -4,13 +4,15 @@ defmodule Membrane.ICE.Common do
 
   # Module containing common behaviour for Sink and Source modules.
 
+  alias Membrane.ICE.Handshake
+
   require Unifex.CNode
   require Membrane.Logger
 
   defmodule State do
     @moduledoc false
 
-    @type handshake_state :: :in_progress | :finished | :disabled
+    @type handshake_state :: :in_progress | :finished
     @type handshake_data :: term()
     @type component_id :: integer()
 
@@ -18,16 +20,49 @@ defmodule Membrane.ICE.Common do
             ice: pid(),
             controlling_mode: boolean(),
             stream_id: integer(),
-            handshakes: %{component_id() => {pid, handshake_state, handshake_data}},
+            n_components: integer(),
+            stream_name: String.t(),
+            handshakes: %{
+              component_id() => {Handshake.ctx(), handshake_state(), handshake_data()}
+            },
             handshake_module: Handshake.t(),
+            handshake_opts: list(),
             connections: MapSet.t()
           }
     defstruct ice: nil,
               controlling_mode: false,
               stream_id: nil,
+              n_components: 1,
+              stream_name: "",
               handshakes: %{},
               handshake_module: Handshake.Default,
+              handshake_opts: [],
               connections: MapSet.new()
+  end
+
+  def handle_stopped_to_prepared(_ctx, state) do
+    %State{
+      ice: ice,
+      n_components: n_components,
+      stream_name: stream_name,
+      handshake_module: handshake_module,
+      handshake_opts: handshake_opts
+    } = state
+
+    case ExLibnice.add_stream(ice, n_components, stream_name) do
+      {:ok, stream_id} ->
+        handshakes =
+          1..n_components
+          |> Enum.reduce(%{}, fn component_id, acc ->
+            {:ok, ctx} = handshake_module.init(handshake_opts)
+            Map.put(acc, component_id, {ctx, :in_progress, nil})
+          end)
+
+        {:ok, %State{state | stream_id: stream_id, handshakes: handshakes}}
+
+      {:error, cause} ->
+        {{:error, cause}, state}
+    end
   end
 
   def handle_ice_message(:generate_local_sdp, _ctx, %State{ice: ice} = state) do
@@ -134,28 +169,34 @@ defmodule Membrane.ICE.Common do
   def handle_ice_message({:ice_payload, stream_id, component_id, payload}, _ctx, state) do
     %State{
       ice: ice,
-      handshakes: %{^component_id => {dtls_pid, _handshake_state, _handshake_data}} = handshakes,
+      handshakes: handshakes,
       handshake_module: handshake_module
     } = state
 
-    case handshake_module.recv_from_peer(dtls_pid, payload) do
-      {:ok, packets} ->
-        ExLibnice.send_payload(ice, stream_id, component_id, packets)
-        {:ok, state}
+    {handshake_ctx, handshake_state, _handshake_data} = Map.get(handshakes, component_id)
 
-      {:finished_with_packets, handshake_data, packets} ->
-        ExLibnice.send_payload(ice, stream_id, component_id, packets)
-        update_state_and_return(component_id, dtls_pid, handshake_data, handshakes, state)
+    if handshake_state != :finished do
+      case handshake_module.recv_from_peer(handshake_ctx, payload) do
+        {:ok, packets} ->
+          ExLibnice.send_payload(ice, stream_id, component_id, packets)
+          {:ok, state}
 
-      {:finished, handshake_data} ->
-        update_state_and_return(component_id, dtls_pid, handshake_data, handshakes, state)
+        {:finished_with_packets, handshake_data, packets} ->
+          ExLibnice.send_payload(ice, stream_id, component_id, packets)
+          update_state_and_return(component_id, handshake_ctx, handshake_data, handshakes, state)
+
+        {:finished, handshake_data} ->
+          update_state_and_return(component_id, handshake_ctx, handshake_data, handshakes, state)
+      end
+    else
+      {:ok, state}
     end
   end
 
   def handle_ice_message(
         {:component_state_ready, stream_id, component_id},
         _ctx,
-        %State{ice: ice, controlling_mode: controlling_mode} = state
+        %State{ice: ice} = state
       ) do
     Membrane.Logger.debug("Component #{component_id} READY")
 
@@ -164,7 +205,7 @@ defmodule Membrane.ICE.Common do
       handshake_module: handshake_module
     } = state
 
-    {pid, handshake_state, handshake_data} = Map.get(handshakes, component_id)
+    {handshake_ctx, handshake_state, handshake_data} = Map.get(handshakes, component_id)
 
     new_connections = MapSet.put(state.connections, component_id)
     new_state = %State{state | connections: new_connections}
@@ -172,12 +213,30 @@ defmodule Membrane.ICE.Common do
     if handshake_state == :finished do
       {{:ok, notify: {:component_state_ready, component_id, handshake_data}}, new_state}
     else
-      if controlling_mode do
-        {:ok, packets} = handshake_module.connection_ready(pid)
-        ExLibnice.send_payload(ice, stream_id, component_id, packets)
-      end
+      case handshake_module.connection_ready(handshake_ctx) do
+        :ok ->
+          {:ok, new_state}
 
-      {:ok, new_state}
+        {:ok, packets} ->
+          ExLibnice.send_payload(ice, stream_id, component_id, packets)
+          {:ok, new_state}
+
+        {:finished_with_packets, handshake_data, packets} ->
+          ExLibnice.send_payload(ice, stream_id, component_id, packets)
+
+          handshakes =
+            Map.put(handshakes, component_id, {handshake_ctx, :finished, handshake_data})
+
+          new_state = %State{new_state | handshakes: handshakes}
+          {{:ok, notify: {:component_state_ready, component_id, handshake_data}}, new_state}
+
+        {:finished, handshake_data} ->
+          handshakes =
+            Map.put(handshakes, component_id, {handshake_ctx, :finished, handshake_data})
+
+          new_state = %State{new_state | handshakes: handshakes}
+          {{:ok, notify: {:component_state_ready, component_id, handshake_data}}, new_state}
+      end
     end
   end
 
@@ -187,8 +246,8 @@ defmodule Membrane.ICE.Common do
     {:ok, state}
   end
 
-  defp update_state_and_return(component_id, dtls_pid, handshake_data, handshakes, state) do
-    handshakes = Map.put(handshakes, component_id, {dtls_pid, :finished, handshake_data})
+  defp update_state_and_return(component_id, handshake_ctx, handshake_data, handshakes, state) do
+    handshakes = Map.put(handshakes, component_id, {handshake_ctx, :finished, handshake_data})
     new_state = %State{state | handshakes: handshakes}
 
     if MapSet.member?(state.connections, component_id) do

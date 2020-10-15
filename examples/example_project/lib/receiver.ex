@@ -12,7 +12,7 @@ defmodule Example.Receiver do
       source: %Membrane.ICE.Source{
         stun_servers: ["64.233.161.127:19302"],
         controlling_mode: false,
-        handshake_module: Membrane.ICE.Handshake.DTLS,
+        handshake_module: Membrane.DTLS.Handshake,
         handshake_opts: [client_mode: false, dtls_srtp: true]
       }
     }
@@ -50,7 +50,7 @@ defmodule Example.Receiver do
   end
 
   @impl true
-  def handle_other(:init, _ctx, state) do
+  def handle_other(:start, _ctx, state) do
     {{:ok, forward: {:source, :generate_local_sdp}}, state}
   end
 

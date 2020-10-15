@@ -16,8 +16,10 @@ Let's start with a sender one, type:
 iex -S mix
 iex(1)> {:ok, pid} = Example.Sender.start_link()
 {:ok, #PID<0.274.0>}
-iex(bundlex_app_...)2> send(pid, :init)
-:init
+iex(bundlex_app_...)2> Example.Sender.prepare(pid)
+[info]  [pipeline@<0.318.0>] Pipeline playback state changed from stopped to prepared
+iex(bundlex_app_...)3> send(pid, :start)
+:start
 ```
 
 Sending `:init` message will generate local SDP containing information about a stream and
@@ -40,8 +42,10 @@ Now do the same on the receiver host. Type:
 iex -S mix
 iex(1)> {:ok, pid} = Example.Receiver.start_link()
 {:ok, #PID<0.351.0>}
-iex(bundlex_app_...)2> send(pid, :init)
-:init
+iex(bundlex_app_...)2> Example.Sender.prepare(pid)
+[info]  [pipeline@<0.324.0>] Pipeline playback state changed from stopped to prepared
+iex(bundlex_app_...)3> send(pid, :start)
+:start
 ```
 Again you should see logs with local SDP and candidates.
 

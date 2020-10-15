@@ -73,16 +73,7 @@ defmodule Membrane.ICE.Source do
     mode: :push
 
   @impl true
-  def handle_init(%__MODULE__{handshake_module: Handshake.Default} = options) do
-    handle_init(options, :finished)
-  end
-
-  @impl true
   def handle_init(options) do
-    handle_init(options, :in_progress)
-  end
-
-  defp handle_init(options, handshake_state) do
     %__MODULE__{
       n_components: n_components,
       stream_name: stream_name,
@@ -101,28 +92,21 @@ defmodule Membrane.ICE.Source do
         port_range: port_range
       )
 
-    case ExLibnice.add_stream(ice, n_components, stream_name) do
-      {:ok, stream_id} ->
-        handshakes =
-          1..n_components
-          |> Enum.reduce(%{}, fn component_id, acc ->
-            {:ok, pid} = handshake_module.start_link(handshake_opts)
-            Map.put(acc, component_id, {pid, handshake_state, nil})
-          end)
+    state = %Common.State{
+      ice: ice,
+      controlling_mode: controlling_mode,
+      n_components: n_components,
+      stream_name: stream_name,
+      handshake_module: handshake_module,
+      handshake_opts: handshake_opts
+    }
 
-        state = %Common.State{
-          ice: ice,
-          controlling_mode: controlling_mode,
-          stream_id: stream_id,
-          handshakes: handshakes,
-          handshake_module: handshake_module
-        }
+    {:ok, state}
+  end
 
-        {:ok, state}
-
-      {:error, cause} ->
-        {{:error, cause}, %Common.State{}}
-    end
+  @impl true
+  def handle_stopped_to_prepared(ctx, state) do
+    Common.handle_stopped_to_prepared(ctx, state)
   end
 
   @impl true

@@ -10,9 +10,10 @@ defmodule Example.Sender do
   def handle_init(_) do
     children = %{
       sink: %Membrane.ICE.Sink{
+        stream_name: "audio",
         stun_servers: ["64.233.161.127:19302"],
         controlling_mode: true,
-        handshake_module: Membrane.ICE.Handshake.DTLS,
+        handshake_module: Membrane.DTLS.Handshake,
         handshake_opts: [client_mode: true, dtls_srtp: true]
       }
     }
@@ -50,7 +51,7 @@ defmodule Example.Sender do
   end
 
   @impl true
-  def handle_other(:init, _ctx, state) do
+  def handle_other(:start, _ctx, state) do
     {{:ok, forward: {:sink, :generate_local_sdp}}, state}
   end
 

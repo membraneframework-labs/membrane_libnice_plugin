@@ -7,17 +7,17 @@ defmodule Membrane.ICE.Handshake.Default do
   @behaviour Membrane.ICE.Handshake
 
   @impl true
-  def start_link(_opts) do
+  def init(_opts) do
     {:ok, nil}
   end
 
   @impl true
-  def connection_ready(_pid) do
-    :ok
+  def connection_ready(_ctx) do
+    {:finished, nil}
   end
 
   @impl true
-  def recv_from_peer(_pid, _data) do
-    :ok
+  def recv_from_peer(_ctx, _data) do
+    {:finished, nil}
   end
 end

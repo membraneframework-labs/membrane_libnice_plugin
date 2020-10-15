@@ -6,7 +6,7 @@ defmodule Membrane.ICE.IntegrationTest do
   alias Membrane.Testing
   alias Membrane.ICE.Handshake
 
-  @file_path "./ice-recv.h264"
+  @file_path "/tmp/ice-recv.h264"
 
   setup do
     File.rm(@file_path)
@@ -14,78 +14,56 @@ defmodule Membrane.ICE.IntegrationTest do
     :ok
   end
 
-  describe "ice" do
-    test "trickle with default handshake" do
-      tx_pipeline_custom_args = [handshake_module: Handshake.Default, handshake_opts: []]
+  test "trickle with default handshake" do
+    {:ok, tx_pid} =
+      Testing.Pipeline.start_link(%Testing.Pipeline.Options{
+        module: Membrane.ICE.Support.TestSender,
+        custom_args: [handshake_module: Handshake.Default, handshake_opts: []]
+      })
 
-      rx_pipeline_custom_args = [
-        handshake_module: Handshake.Default,
-        handshake_opts: [],
-        file_path: @file_path
-      ]
+    {:ok, rx_pid} =
+      Testing.Pipeline.start_link(%Testing.Pipeline.Options{
+        module: Membrane.ICE.Support.TestReceiver,
+        custom_args: [
+          handshake_module: Handshake.Default,
+          handshake_opts: [],
+          file_path: @file_path
+        ]
+      })
 
-      test_ice(tx_pipeline_custom_args, rx_pipeline_custom_args)
-    end
+    Testing.Pipeline.prepare(tx_pid)
+    Testing.Pipeline.prepare(rx_pid)
 
-    test "trickle with DTLS-SRTP handshake" do
-      tx_pipeline_custom_args = [
-        handshake_module: Handshake.DTLS,
-        handshake_opts: [client_mode: true, dtls_srtp: true]
-      ]
+    # setup sink
+    Testing.Pipeline.message_child(tx_pid, :sink, :get_local_credentials)
+    assert_pipeline_notified(tx_pid, :sink, {:local_credentials, tx_credentials})
 
-      rx_pipeline_custom_args = [
-        handshake_module: Handshake.DTLS,
-        handshake_opts: [client_mode: false, dtls_srtp: true],
-        file_path: @file_path
-      ]
+    # setup source
+    Testing.Pipeline.message_child(rx_pid, :source, :get_local_credentials)
+    assert_pipeline_notified(rx_pid, :source, {:local_credentials, rx_credentials})
 
-      test_ice(tx_pipeline_custom_args, rx_pipeline_custom_args)
-    end
+    # set credentials
+    cred_msg = {:set_remote_credentials, rx_credentials}
+    Testing.Pipeline.message_child(tx_pid, :sink, cred_msg)
 
-    defp test_ice(tx_pipeline_custom_args, rx_pipeline_custom_args) do
-      {:ok, tx_pid} =
-        Testing.Pipeline.start_link(%Testing.Pipeline.Options{
-          module: Membrane.ICE.Support.TestSender,
-          custom_args: tx_pipeline_custom_args
-        })
+    cred_msg = {:set_remote_credentials, tx_credentials}
+    Testing.Pipeline.message_child(rx_pid, :source, cred_msg)
 
-      {:ok, rx_pid} =
-        Testing.Pipeline.start_link(%Testing.Pipeline.Options{
-          module: Membrane.ICE.Support.TestReceiver,
-          custom_args: rx_pipeline_custom_args
-        })
+    # start connectivity checks
+    Testing.Pipeline.message_child(tx_pid, :sink, :gather_candidates)
+    Testing.Pipeline.message_child(rx_pid, :source, :gather_candidates)
+    set_remote_candidates(tx_pid, rx_pid)
 
-      # setup sink
-      Testing.Pipeline.message_child(tx_pid, :sink, :get_local_credentials)
-      assert_pipeline_notified(tx_pid, :sink, {:local_credentials, tx_credentials})
+    # send and receive data
+    Testing.Pipeline.play(rx_pid)
+    Testing.Pipeline.play(tx_pid)
 
-      # setup source
-      Testing.Pipeline.message_child(rx_pid, :source, :get_local_credentials)
-      assert_pipeline_notified(rx_pid, :source, {:local_credentials, rx_credentials})
+    :timer.sleep(1000)
 
-      # set credentials
-      cred_msg = {:set_remote_credentials, rx_credentials}
-      Testing.Pipeline.message_child(tx_pid, :sink, cred_msg)
+    assert File.exists?(@file_path)
 
-      cred_msg = {:set_remote_credentials, tx_credentials}
-      Testing.Pipeline.message_child(rx_pid, :source, cred_msg)
-
-      # start connectivity checks
-      Testing.Pipeline.message_child(tx_pid, :sink, :gather_candidates)
-      Testing.Pipeline.message_child(rx_pid, :source, :gather_candidates)
-      set_remote_candidates(tx_pid, rx_pid)
-
-      # send and receive data
-      #      Testing.Pipeline.play(rx_pid)
-      #      Testing.Pipeline.play(tx_pid)
-      #
-      #      :timer.sleep(1000)
-      #
-      #      assert File.exists?(@file_path)
-      #
-      #      %{size: size} = File.stat!(@file_path)
-      #      assert size > 140_000
-    end
+    %{size: size} = File.stat!(@file_path)
+    assert size > 140_000
   end
 
   defp set_remote_candidates(
