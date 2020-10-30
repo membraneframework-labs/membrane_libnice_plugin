@@ -53,7 +53,7 @@ defmodule Membrane.ICE.Common do
       {:ok, stream_id} ->
         handshakes =
           1..n_components
-          |> Enum.reduce(%{}, fn component_id, acc ->
+          |> Map.new(fn component_id, acc ->
             {:ok, ctx} = handshake_module.init(handshake_opts)
             Map.put(acc, component_id, {ctx, :in_progress, nil})
           end)
@@ -183,10 +183,29 @@ defmodule Membrane.ICE.Common do
 
         {:finished_with_packets, handshake_data, packets} ->
           ExLibnice.send_payload(ice, stream_id, component_id, packets)
-          update_state_and_return(component_id, handshake_ctx, handshake_data, handshakes, state)
+
+          handshakes =
+            Map.put(handshakes, component_id, {handshake_ctx, :finished, handshake_data})
+
+          new_state = %State{state | handshakes: handshakes}
+
+          if MapSet.member?(state.connections, component_id) do
+            {{:ok, notify: {:component_state_ready, component_id, handshake_data}}, new_state}
+          else
+            {:ok, new_state}
+          end
 
         {:finished, handshake_data} ->
-          update_state_and_return(component_id, handshake_ctx, handshake_data, handshakes, state)
+          handshakes =
+            Map.put(handshakes, component_id, {handshake_ctx, :finished, handshake_data})
+
+          new_state = %State{state | handshakes: handshakes}
+
+          if MapSet.member?(state.connections, component_id) do
+            {{:ok, notify: {:component_state_ready, component_id, handshake_data}}, new_state}
+          else
+            {:ok, new_state}
+          end
       end
     else
       {:ok, state}
@@ -244,16 +263,5 @@ defmodule Membrane.ICE.Common do
     Membrane.Logger.warn("Unknown message #{inspect(msg)}")
 
     {:ok, state}
-  end
-
-  defp update_state_and_return(component_id, handshake_ctx, handshake_data, handshakes, state) do
-    handshakes = Map.put(handshakes, component_id, {handshake_ctx, :finished, handshake_data})
-    new_state = %State{state | handshakes: handshakes}
-
-    if MapSet.member?(state.connections, component_id) do
-      {{:ok, notify: {:component_state_ready, component_id, handshake_data}}, new_state}
-    else
-      {:ok, new_state}
-    end
   end
 end
