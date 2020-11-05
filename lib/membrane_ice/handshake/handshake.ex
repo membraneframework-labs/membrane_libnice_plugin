@@ -18,8 +18,11 @@ defmodule Membrane.ICE.Handshake do
 
   `opts` - options specified in `handshake_opts` option in Sink/Source
   `ctx` - context that will be passed to other functions
+
+  Returning by a peer `:finished` will mark handshake as finished and none of the remaining
+  functions will be invoked for this peer.
   """
-  @callback init(opts :: list()) :: {:ok, ctx()}
+  @callback init(opts :: list()) :: {:ok, ctx()} | :finished
 
   @doc """
   Called only once when component changes state to READY i.e. it is able to receive and send data.
