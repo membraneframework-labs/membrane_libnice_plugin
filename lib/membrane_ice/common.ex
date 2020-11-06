@@ -14,7 +14,7 @@ defmodule Membrane.ICE.Common do
   defmodule State do
     @moduledoc false
 
-    @type handshake_state :: :in_progress | :finished
+    @type handshake_status :: :in_progress | :finished
     @type handshake_data :: term()
     @type component_id :: integer()
 
@@ -25,7 +25,7 @@ defmodule Membrane.ICE.Common do
             n_components: integer(),
             stream_name: String.t(),
             handshakes: %{
-              component_id() => {Handshake.ctx(), handshake_state(), handshake_data()}
+              component_id() => {Handshake.state(), handshake_status(), handshake_data()}
             },
             handshake_module: Handshake.t(),
             handshake_opts: list(),
@@ -202,13 +202,13 @@ defmodule Membrane.ICE.Common do
       handshake_module: handshake_module
     } = state
 
-    {handshake_ctx, handshake_state, _handshake_data} = Map.get(handshakes, component_id)
+    {handshake_state, handshake_status, _handshake_data} = Map.get(handshakes, component_id)
 
-    if handshake_state != :finished do
-      res = handshake_module.recv_from_peer(handshake_ctx, payload)
+    if handshake_status != :finished do
+      res = handshake_module.recv_from_peer(handshake_state, payload)
 
       {{finished?, handshake_data}, new_state} =
-        parse_result(res, ice, stream_id, component_id, handshakes, handshake_ctx, state)
+        parse_result(res, ice, stream_id, component_id, handshakes, handshake_state, state)
 
       if finished? and MapSet.member?(state.connections, component_id) do
         {{:ok, notify: {:component_state_ready, component_id, handshake_data}}, new_state}
@@ -229,16 +229,16 @@ defmodule Membrane.ICE.Common do
       handshake_module: handshake_module
     } = state
 
-    {handshake_ctx, handshake_state, handshake_data} = Map.get(handshakes, component_id)
+    {handshake_state, handshake_status, handshake_data} = Map.get(handshakes, component_id)
 
     new_connections = MapSet.put(state.connections, component_id)
     new_state = %State{state | connections: new_connections}
 
-    if handshake_state != :finished do
-      res = handshake_module.connection_ready(handshake_ctx)
+    if handshake_status != :finished do
+      res = handshake_module.connection_ready(handshake_state)
 
       {{finished?, handshake_data}, new_state} =
-        parse_result(res, ice, stream_id, component_id, handshakes, handshake_ctx, new_state)
+        parse_result(res, ice, stream_id, component_id, handshakes, handshake_state, new_state)
 
       if finished? do
         {{:ok, notify: {:component_state_ready, component_id, handshake_data}}, new_state}
@@ -256,7 +256,7 @@ defmodule Membrane.ICE.Common do
     {:ok, state}
   end
 
-  defp parse_result(res, ice, stream_id, component_id, handshakes, handshake_ctx, state) do
+  defp parse_result(res, ice, stream_id, component_id, handshakes, handshake_state, state) do
     case res do
       :ok ->
         {{false, nil}, state}
@@ -267,12 +267,17 @@ defmodule Membrane.ICE.Common do
 
       {:finished_with_packets, handshake_data, packets} ->
         ExLibnice.send_payload(ice, stream_id, component_id, packets)
-        handshakes = Map.put(handshakes, component_id, {handshake_ctx, :finished, handshake_data})
+
+        handshakes =
+          Map.put(handshakes, component_id, {handshake_state, :finished, handshake_data})
+
         new_state = %State{state | handshakes: handshakes}
         {{true, handshake_data}, new_state}
 
       {:finished, handshake_data} ->
-        handshakes = Map.put(handshakes, component_id, {handshake_ctx, :finished, handshake_data})
+        handshakes =
+          Map.put(handshakes, component_id, {handshake_state, :finished, handshake_data})
+
         new_state = %State{state | handshakes: handshakes}
         {{true, handshake_data}, new_state}
     end

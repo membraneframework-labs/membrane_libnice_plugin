@@ -12,12 +12,12 @@ defmodule Membrane.ICE.Handshake.Default do
   end
 
   @impl true
-  def connection_ready(_ctx) do
+  def connection_ready(_state) do
     {:finished, nil}
   end
 
   @impl true
-  def recv_from_peer(_ctx, _data) do
+  def recv_from_peer(_state, _data) do
     {:finished, nil}
   end
 end

@@ -11,18 +11,18 @@ defmodule Membrane.ICE.Handshake do
   @typedoc """
   It is any type that user want it to be passed to other functions of this behaviour.
   """
-  @type ctx :: term()
+  @type state :: term()
 
   @doc """
   Called only once at Sink/Source preparation.
 
   `opts` - options specified in `handshake_opts` option in Sink/Source
-  `ctx` - context that will be passed to other functions
+  `state` - state that will be passed to other functions
 
   Returning by a peer `:finished` will mark handshake as finished and none of the remaining
   functions will be invoked for this peer.
   """
-  @callback init(opts :: list()) :: {:ok, ctx()} | :finished
+  @callback init(opts :: list()) :: {:ok, state()} | :finished
 
   @doc """
   Called only once when component changes state to READY i.e. it is able to receive and send data.
@@ -31,7 +31,7 @@ defmodule Membrane.ICE.Handshake do
   and only waits for initialization from its peer it can return `ok` message.
   Meaning of the rest return values is the same as in `recv_from_peer/2`.
   """
-  @callback connection_ready(ctx :: ctx()) ::
+  @callback connection_ready(state :: state()) ::
               :ok
               | {:ok, packets :: binary()}
               | {:finished_with_packets, handshake_data :: term(), packets :: binary()}
@@ -53,7 +53,7 @@ defmodule Membrane.ICE.Handshake do
 
   `handshake_data` is any data user want to return after finishing handshake.
   """
-  @callback recv_from_peer(ctx :: ctx(), data :: binary()) ::
+  @callback recv_from_peer(state :: state(), data :: binary()) ::
               {:ok, packets :: binary()}
               | {:finished_with_packets, handshake_data :: term(), packets :: binary()}
               | {:finished, handshake_data :: term()}
