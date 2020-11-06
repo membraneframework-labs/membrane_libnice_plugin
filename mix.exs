@@ -41,6 +41,7 @@ defmodule Membrane.ICE.Mixfile do
       {:ex_libnice, git: "https://github.com/membraneframework/ex_libnice.git"},
       {:ex_doc, "~> 0.22", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
+      {:credo, "~> 1.4", only: :dev, runtime: false},
       {:membrane_element_file, "~> 0.4.0", only: :test},
       {:membrane_element_hackney, "~> 0.2", only: :test}
     ]
@@ -61,7 +62,7 @@ defmodule Membrane.ICE.Mixfile do
   defp docs do
     [
       main: "readme",
-      extras: ["README.md"],
+      extras: ["README.md", "LICENSE"],
       source_ref: "v#{@version}",
       nest_modules_by_prefix: [Membrane.ICE]
     ]

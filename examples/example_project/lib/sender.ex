@@ -10,8 +10,11 @@ defmodule Example.Sender do
   def handle_init(_) do
     children = %{
       sink: %Membrane.ICE.Sink{
+        stream_name: "audio",
         stun_servers: ["64.233.161.127:19302"],
-        controlling_mode: true
+        controlling_mode: true,
+        handshake_module: Membrane.DTLS.Handshake,
+        handshake_opts: [client_mode: true, dtls_srtp: true]
       }
     }
 
@@ -37,16 +40,9 @@ defmodule Example.Sender do
   end
 
   @impl true
-  def handle_notification({:stream_id, stream_id} = msg, _from, _ctx, state) do
-    Membrane.Logger.info("#{inspect(msg)}")
-    state = Map.put(state, :stream_id, stream_id)
-    {{:ok, forward: {:sink, :generate_local_sdp}}, state}
-  end
-
-  @impl true
   def handle_notification({:local_sdp, _sdp} = msg, _from, _ctx, state) do
     Membrane.Logger.info("#{inspect(msg)}")
-    {{:ok, forward: {:sink, {:gather_candidates, state.stream_id}}}, state}
+    {{:ok, forward: {:sink, :gather_candidates}}, state}
   end
 
   @impl true
@@ -55,19 +51,18 @@ defmodule Example.Sender do
   end
 
   @impl true
-  def handle_other(:init, _ctx, state) do
-    n_components = 1
-    {{:ok, forward: {:sink, {:add_stream, n_components}}}, state}
+  def handle_other(:start, _ctx, state) do
+    {{:ok, forward: {:sink, :generate_local_sdp}}, state}
   end
 
   @impl true
-  def handle_other({:set_remote_credentials, remote_credentials, stream_id}, _ctx, state) do
-    {{:ok, forward: {:sink, {:set_remote_credentials, remote_credentials, stream_id}}}, state}
+  def handle_other({:set_remote_credentials, remote_credentials}, _ctx, state) do
+    {{:ok, forward: {:sink, {:set_remote_credentials, remote_credentials}}}, state}
   end
 
   @impl true
   def handle_other({:set_remote_candidate, candidate}, _ctx, state) do
-    {{:ok, forward: {:sink, {:set_remote_candidate, candidate, state.stream_id, 1}}}, state}
+    {{:ok, forward: {:sink, {:set_remote_candidate, candidate, 1}}}, state}
   end
 
   @impl true

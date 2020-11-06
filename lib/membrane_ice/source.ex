@@ -2,18 +2,12 @@ defmodule Membrane.ICE.Source do
   @moduledoc """
   Element that receives buffers (over UDP or TCP) and sends them on relevant pads.
 
-  For example if buffer was received by component 1 on stream 1 the buffer will be passed
-  on pad {1, 1}. The pipeline or bin has to create link to this element after receiving
-  {:component_state_ready, stream_id, component_id} message. Doing it earlier will cause an error
-  because given component is not in the READY state yet.
+  As Source works analogously to the Sink here we only describe features that are specific
+  for Source.
 
-  ## Pad semantics
-  Each dynamic pad has to be created with id represented by a tuple `{stream_id, component_id}`.
-  Receiving data on component with id `component_id` in stream with id `stream_id` will cause in
-  conveying this data on pad with id `{stream_id, component_id}`.
-  It is important to link to the Source only after receiving message
-  `{:component_state_ready, stream_id, component_id}` which indicates that component with id
-  `component_id` in stream with `stream_id` is ready to send and receive data.
+  ## Architecture and pad semantics
+  Receiving data on component with id `component_id`  will cause in conveying this data on pad
+  with id `component_id`.
 
   ## Interacting with Source
   Interacting with Source is the same as with Sink. Please refer to `Membrane.ICE.Sink` for
@@ -24,25 +18,29 @@ defmodule Membrane.ICE.Source do
   for details.
 
   ### Messages Source sends
-  Source sends all messages that Sink sends (please refer to `Membrane.ICE.Sink`) and additionally
-  one more:
-
-  - `{:ice_payload, stream_id, component_id, payload}` - new received payload on component with id
-  `component_id` in stream with id `stream_id`.
-
-    Triggered by: this message is not triggered by any other message.
-
+  Source sends all messages that Sink sends. Please refer to `Membrane.ICE.Sink` for details.
   """
 
   use Membrane.Source
 
+  alias Membrane.Buffer
+  alias Membrane.ICE.Common
+  alias Membrane.ICE.Handshake
+
   require Unifex.CNode
   require Membrane.Logger
 
-  alias Membrane.Buffer
-  alias Membrane.ICE.Common
-
-  def_options stun_servers: [
+  def_options n_components: [
+                type: :integer,
+                default: 1,
+                description: "Number of components that will be created in the stream"
+              ],
+              stream_name: [
+                type: :string,
+                default: "",
+                description: "Name of the stream"
+              ],
+              stun_servers: [
                 type: [:string],
                 default: [],
                 description: "List of stun servers in form of ip:port"
@@ -56,6 +54,17 @@ defmodule Membrane.ICE.Source do
                 type: :range,
                 default: 0..0,
                 description: "The port range to use"
+              ],
+              handshake_module: [
+                type: :module,
+                default: Handshake.Default,
+                description: "Module implementing Handshake behaviour"
+              ],
+              handshake_opts: [
+                type: :list,
+                default: [],
+                description: "Options for handshake module. They will be passed to start_link
+                function of handshake_module"
               ]
 
   def_output_pad :output,
@@ -63,23 +72,16 @@ defmodule Membrane.ICE.Source do
     caps: :any,
     mode: :push
 
-  defmodule State do
-    @moduledoc false
-
-    @type t :: %__MODULE__{
-            ice: pid,
-            connections: MapSet.t()
-          }
-    defstruct ice: nil,
-              connections: MapSet.new()
-  end
-
   @impl true
-  def handle_init(%__MODULE__{} = options) do
+  def handle_init(options) do
     %__MODULE__{
+      n_components: n_components,
+      stream_name: stream_name,
       stun_servers: stun_servers,
       controlling_mode: controlling_mode,
-      port_range: port_range
+      port_range: port_range,
+      handshake_module: handshake_module,
+      handshake_opts: handshake_opts
     } = options
 
     {:ok, ice} =
@@ -90,21 +92,30 @@ defmodule Membrane.ICE.Source do
         port_range: port_range
       )
 
-    state = %State{
-      ice: ice
+    state = %Common.State{
+      ice: ice,
+      controlling_mode: controlling_mode,
+      n_components: n_components,
+      stream_name: stream_name,
+      handshake_module: handshake_module,
+      handshake_opts: handshake_opts
     }
 
     {:ok, state}
   end
 
   @impl true
-  def handle_pad_added(Pad.ref(:output, {stream_id, component_id}), _ctx, state) do
-    if MapSet.member?(state.connections, {stream_id, component_id}) do
+  def handle_stopped_to_prepared(ctx, state) do
+    Common.handle_stopped_to_prepared(ctx, state)
+  end
+
+  @impl true
+  def handle_pad_added(Pad.ref(:output, component_id), _ctx, state) do
+    if MapSet.member?(state.connections, component_id) do
       {:ok, state}
     else
       Membrane.Logger.error("""
-      Connection for stream: #{stream_id} and component: #{component_id} not established yet.
-      Cannot add pad
+      Connection for component: #{component_id} not established yet. Cannot add pad
       """)
 
       {{:ok, notify: :connection_not_established_yet}, state}
@@ -113,18 +124,18 @@ defmodule Membrane.ICE.Source do
 
   @impl true
   def handle_other(
-        {:ice_payload, stream_id, component_id, payload},
+        {:ice_payload, _stream_id, component_id, payload},
         %{playback_state: :playing} = ctx,
         state
       ) do
     Membrane.Logger.debug("Received payload: #{Membrane.Payload.size(payload)} bytes")
 
     actions =
-      case Map.get(ctx.pads, Pad.ref(:output, {stream_id, component_id})) do
+      case Map.get(ctx.pads, Pad.ref(:output, component_id)) do
         nil ->
           Membrane.Logger.warn("""
-          Pad for stream: #{stream_id} and component: #{component_id} not
-          added yet. Probably your component is not in READY state yet. Ignoring message
+          Pad for component: #{component_id} not added yet. Probably your component is not in READY
+          state yet. Ignoring message
           """)
 
           []
@@ -134,15 +145,6 @@ defmodule Membrane.ICE.Source do
       end
 
     {{:ok, actions}, state}
-  end
-
-  @impl true
-  def handle_other({:component_state_ready, stream_id, component_id} = msg, _ctx, state) do
-    Membrane.Logger.debug("Component #{component_id} in stream #{stream_id} READY")
-
-    new_connections = MapSet.put(state.connections, {stream_id, component_id})
-    new_state = %State{state | connections: new_connections}
-    {{:ok, notify: msg}, new_state}
   end
 
   @impl true
