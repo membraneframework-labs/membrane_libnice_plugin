@@ -33,6 +33,7 @@ defmodule Membrane.ICE.IntegrationTest do
 
     Testing.Pipeline.prepare(tx_pid)
     Testing.Pipeline.prepare(rx_pid)
+    Testing.Pipeline.play(rx_pid)
 
     # setup sink
     Testing.Pipeline.message_child(tx_pid, :sink, :get_local_credentials)
@@ -54,8 +55,7 @@ defmodule Membrane.ICE.IntegrationTest do
     Testing.Pipeline.message_child(rx_pid, :source, :gather_candidates)
     set_remote_candidates(tx_pid, rx_pid)
 
-    # send and receive data
-    Testing.Pipeline.play(rx_pid)
+    # send data
     Testing.Pipeline.play(tx_pid)
 
     :timer.sleep(1000)

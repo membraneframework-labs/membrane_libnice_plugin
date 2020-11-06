@@ -6,8 +6,9 @@ defmodule Membrane.ICE.Source do
   for Source.
 
   ## Architecture and pad semantics
-  Receiving data on component with id `component_id`  will cause in conveying this data on pad
-  with id `component_id`.
+  Multiple components are handled with dynamic pads. Receiving data on component with id
+  `component_id` will cause in conveying this data on pad with id `component_id`. Other elements
+  can be linked to the Source in any moment. There isn't any restriction like in the case of Sink.
 
   ## Interacting with Source
   Interacting with Source is the same as with Sink. Please refer to `Membrane.ICE.Sink` for
@@ -110,41 +111,49 @@ defmodule Membrane.ICE.Source do
   end
 
   @impl true
-  def handle_pad_added(Pad.ref(:output, component_id), _ctx, state) do
-    if MapSet.member?(state.connections, component_id) do
-      {:ok, state}
-    else
-      Membrane.Logger.error("""
-      Connection for component: #{component_id} not established yet. Cannot add pad
-      """)
+  def handle_pad_added(Pad.ref(:output, _component_id), _ctx, state) do
+    {:ok, state}
+  end
 
-      {{:ok, notify: :connection_not_established_yet}, state}
+  @impl true
+  def handle_prepared_to_playing(ctx, state) do
+    pad_states = 1..state.n_components |> Enum.map(&Map.has_key?(ctx.pads, Pad.ref(:output, &1)))
+
+    if false in pad_states do
+      {{:error, "There are components without corresponding linked pads"}, state}
+    else
+      {:ok, state}
     end
   end
 
   @impl true
   def handle_other(
-        {:ice_payload, _stream_id, component_id, payload},
+        {:ice_payload, _stream_id, component_id, payload} = msg,
         %{playback_state: :playing} = ctx,
-        state
+        %Common.State{handshakes: handshakes} = state
       ) do
     Membrane.Logger.debug("Received payload: #{Membrane.Payload.size(payload)} bytes")
 
-    actions =
-      case Map.get(ctx.pads, Pad.ref(:output, component_id)) do
-        nil ->
-          Membrane.Logger.warn("""
-          Pad for component: #{component_id} not added yet. Probably your component is not in READY
-          state yet. Ignoring message
-          """)
+    {_handshake_ctx, handshake_state, _handshake_data} = Map.get(handshakes, component_id)
 
-          []
+    if handshake_state != :finished do
+      Common.handle_ice_message(msg, ctx, state)
+    else
+      actions =
+        case Map.get(ctx.pads, Pad.ref(:output, component_id)) do
+          nil ->
+            Membrane.Logger.warn("""
+            Pad for component: #{component_id} not added yet. Ignoring payload.
+            """)
 
-        pad ->
-          [buffer: {pad.ref, %Buffer{payload: payload}}]
-      end
+            []
 
-    {{:ok, actions}, state}
+          pad ->
+            [buffer: {pad.ref, %Buffer{payload: payload}}]
+        end
+
+      {{:ok, actions}, state}
+    end
   end
 
   @impl true

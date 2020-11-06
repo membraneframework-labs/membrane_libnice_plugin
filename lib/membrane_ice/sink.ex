@@ -19,7 +19,11 @@ defmodule Membrane.ICE.Sink do
 
   The pipeline or bin has to create link to this element after receiving
   {:component_state_ready, component_id, handshake_data} message. Doing it earlier will cause an
-  error because given component is not in the READY state yet.
+  error because given component is not in the READY state yet. Playing your pipeline is possible
+  only after linking all pads. E.g. if your stream has 2 components you have to wait for
+  `{component_state_ready, 1, handshake_data}` and `{component_state_ready, 2, handshake_data}`
+  messages, then link to Sink using two dynamic pads with ids 1 and 2 and after this you can play
+  your pipeline.
 
   ## Handshakes
   Membrane ICE Plugin provides mechanism for performing handshakes (e.g. DTLS-SRTP) after
@@ -205,15 +209,27 @@ defmodule Membrane.ICE.Sink do
   end
 
   @impl true
-  def handle_pad_added(Pad.ref(:input, component_id) = pad, _ctx, state) do
+  def handle_pad_added(Pad.ref(:input, component_id), _ctx, state) do
     if MapSet.member?(state.connections, component_id) do
-      {{:ok, demand: pad}, state}
+      {:ok, state}
     else
       Membrane.Logger.error("""
       Connection for component: #{component_id} not established yet. Cannot add pad
       """)
 
       {{:error, :connection_not_established_yet}, state}
+    end
+  end
+
+  @impl true
+  def handle_prepared_to_playing(ctx, state) do
+    pad_states = 1..state.n_components |> Enum.map(&Map.has_key?(ctx.pads, Pad.ref(:input, &1)))
+
+    if false in pad_states do
+      {{:error, "There are components without corresponding linked pads"}, state}
+    else
+      demands = 1..state.n_components |> Enum.flat_map(&[demand: Pad.ref(:input, &1)])
+      {{:ok, demands}, state}
     end
   end
 

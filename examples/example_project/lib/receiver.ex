@@ -14,28 +14,21 @@ defmodule Example.Receiver do
         controlling_mode: false,
         handshake_module: Membrane.DTLS.Handshake,
         handshake_opts: [client_mode: false, dtls_srtp: true]
-      }
-    }
-
-    spec = %ParentSpec{
-      children: children
-    }
-
-    {{:ok, spec: spec}, %{}}
-  end
-
-  @impl true
-  def handle_prepared_to_playing(_ctx, state) do
-    children = %{
+      },
       sink: %File.Sink{
         location: "/tmp/ice-recv.h264"
       }
     }
 
-    pad = Pad.ref(:output, state.ready_component)
+    pad = Pad.ref(:output, 1)
     links = [link(:source) |> via_out(pad) |> to(:sink)]
-    spec = %ParentSpec{children: children, links: links}
-    {{:ok, spec: spec}, state}
+
+    spec = %ParentSpec{
+      children: children,
+      links: links
+    }
+
+    {{:ok, spec: spec}, %{}}
   end
 
   @impl true

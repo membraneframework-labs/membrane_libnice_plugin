@@ -103,6 +103,13 @@ In other case received buffers would be ignored (until you call `Example.Receive
 After making both sides playing, the sender will download an example video file and send it to the
 receiver which will then save it to `/tmp` directory under `ice-recv.h264` file.
 
+Note: you can play Receiver in any moment you want. We do this after receiving `component_state_ready`
+message for tutorial purposes but there is no restriction when you can play ICE Source unlike in the
+case of ICE Sink. To play ICE Sink you have to first wait for `component_state_ready`
+notification in your pipeline which is sent by Sink, then you have to link another element
+to Sink pad and after this you can play your Sink. If you have more than one component
+you have to wait for all of them, link all of them and then play pipeline.
+
 You can test received video with:
 ```bash
 ffplay -f h264 /tmp/ice-recv.h264

@@ -25,15 +25,22 @@ defmodule Example.Sender do
     {{:ok, spec: spec}, %{}}
   end
 
+
   @impl true
-  def handle_prepared_to_playing(_ctx, state) do
+  def handle_notification(
+        {:component_state_ready, component_id, _handshake_data} = msg,
+        _from,
+        _ctx,
+        state
+      ) do
+    Membrane.Logger.info("#{inspect(msg)}")
     children = %{
       source: %Hackney.Source{
         location: "https://membraneframework.github.io/static/video-samples/test-video.h264"
       }
     }
 
-    pad = Pad.ref(:input, state.ready_component)
+    pad = Pad.ref(:input, component_id)
     links = [link(:source) |> via_in(pad) |> to(:sink)]
     spec = %ParentSpec{children: children, links: links}
     {{:ok, spec: spec}, state}
