@@ -69,7 +69,30 @@ defmodule Membrane.ICE.Common do
   defp parse_handshake_init_res({:ok, ctx}), do: {ctx, :in_progress, nil}
   defp parse_handshake_init_res(:finished), do: {nil, :finished, nil}
 
-  @spec handle_ice_message(:generate_local_sdp, ctx :: PlaybackChange.t(), state :: State.t()) ::
+  @spec handle_ice_message(
+          :generate_local_sdp
+          | {:parse_remote_sdp, sdp :: String.t()}
+          | :get_local_credentials
+          | {:set_remote_credentials, credentials :: String.t()}
+          | :gather_candidates
+          | :peer_candidate_gathering_done
+          | {:set_remote_candidate, candidate :: String.t(), component_id :: non_neg_integer()}
+          | {:new_candidate_full, cand :: String.t()}
+          | {:candidate_gathering_done, stream_id :: non_neg_integer()}
+          | {:new_selected_pair, stream_id :: non_neg_integer(),
+             component_id :: non_neg_integer(), lfoundation :: String.t(),
+             rfoundation :: String.t()}
+          | {:new_remote_candidate_full, cand :: String.t()}
+          | {:component_state_failed, stream_id :: non_neg_integer(),
+             component_id :: non_neg_integer()}
+          | {:ice_payload, stream_id :: non_neg_integer(), component_id :: non_neg_integer(),
+             payload :: binary()}
+          | {:component_state_ready, stream_id :: non_neg_integer(),
+             component_id :: non_neg_integer()}
+          | any(),
+          ctx :: PlaybackChange.t() | Other.t(),
+          state :: State.t()
+        ) ::
           Base.callback_return_t()
   def handle_ice_message(:generate_local_sdp, _ctx, %State{ice: ice} = state) do
     {:ok, local_sdp} = ExLibnice.generate_local_sdp(ice)
@@ -82,11 +105,6 @@ defmodule Membrane.ICE.Common do
     {{:ok, notify: {:local_sdp, local_sdp}}, state}
   end
 
-  @spec handle_ice_message(
-          {:parse_remote_sdp, sdp :: String.t()},
-          ctx :: PlaybackChange.t(),
-          state :: State.t()
-        ) :: Base.callback_return_t()
   def handle_ice_message({:parse_remote_sdp, sdp}, _ctx, %State{ice: ice} = state) do
     case ExLibnice.parse_remote_sdp(ice, sdp) do
       {:ok, added_cand_num} ->
@@ -97,8 +115,6 @@ defmodule Membrane.ICE.Common do
     end
   end
 
-  @spec handle_ice_message(:get_local_credentials, ctx :: PlaybackChange.t(), state :: State.t()) ::
-          Base.callback_return_t()
   def handle_ice_message(
         :get_local_credentials,
         _ctx,
@@ -110,11 +126,6 @@ defmodule Membrane.ICE.Common do
     end
   end
 
-  @spec handle_ice_message(
-          {:set_remote_credentials, credentials :: String.t()},
-          ctx :: PlaybackChange.t(),
-          state :: State.t()
-        ) :: Base.callback_return_t()
   def handle_ice_message(
         {:set_remote_credentials, credentials},
         _ctx,
@@ -124,8 +135,6 @@ defmodule Membrane.ICE.Common do
     {result, state}
   end
 
-  @spec handle_ice_message(:gather_candidates, ctx :: PlaybackChange.t(), state :: State.t()) ::
-          Base.callback_return_t()
   def handle_ice_message(:gather_candidates, _ctx, %State{ice: ice, stream_id: stream_id} = state) do
     case ExLibnice.gather_candidates(ice, stream_id) do
       :ok -> {:ok, state}
@@ -133,11 +142,6 @@ defmodule Membrane.ICE.Common do
     end
   end
 
-  @spec handle_ice_message(
-          :peer_candidate_gathering_done,
-          ctx :: PlaybackChange.t(),
-          state :: State.t()
-        ) :: Base.callback_return_t()
   def handle_ice_message(
         :peer_candidate_gathering_done,
         _ctx,
@@ -149,11 +153,6 @@ defmodule Membrane.ICE.Common do
     end
   end
 
-  @spec handle_ice_message(
-          {:set_remote_candidate, candidate :: String.t(), component_id :: non_neg_integer()},
-          ctx :: PlaybackChange.t(),
-          state :: State.t()
-        ) :: Base.callback_return_t()
   def handle_ice_message(
         {:set_remote_candidate, candidate, component_id},
         _ctx,
@@ -165,44 +164,22 @@ defmodule Membrane.ICE.Common do
     end
   end
 
-  @spec handle_ice_message(
-          {:new_candidate_full, cand :: String.t()},
-          ctx :: PlaybackChange.t(),
-          state :: State.t()
-        ) :: Base.callback_return_t()
   def handle_ice_message({:new_candidate_full, _cand} = msg, _ctx, state) do
     Membrane.Logger.debug("#{inspect(msg)}")
     {{:ok, notify: msg}, state}
   end
 
-  @spec handle_ice_message(
-          {:new_remote_candidate_full, cand :: String.t()},
-          ctx :: PlaybackChange.t(),
-          state :: State.t()
-        ) ::
-          Base.callback_return_t()
   def handle_ice_message({:new_remote_candidate_full, _cand} = msg, _ctx, state) do
     Membrane.Logger.debug("#{inspect(msg)}")
     {{:ok, notify: msg}, state}
   end
 
-  @spec handle_ice_message(
-          {:candidate_gathering_done, stream_id :: non_neg_integer()},
-          ctx :: PlaybackChange.t(),
-          state :: State.t()
-        ) :: Base.callback_return_t()
   def handle_ice_message({:candidate_gathering_done, _stream_id} = msg, _ctx, state) do
     Membrane.Logger.debug("#{inspect(msg)}")
 
     {{:ok, notify: :candidate_gathering_done}, state}
   end
 
-  @spec handle_ice_message(
-          {:new_selected_pair, stream_id :: non_neg_integer(), component_id :: non_neg_integer(),
-           lfoundation :: String.t(), rfoundation :: String.t()},
-          ctx :: PlaybackChange.t(),
-          state :: State.t()
-        ) :: Base.callback_return_t()
   def handle_ice_message(
         {:new_selected_pair, _stream_id, component_id, lfoundation, rfoundation} = msg,
         _ctx,
@@ -213,23 +190,11 @@ defmodule Membrane.ICE.Common do
     {{:ok, notify: {:new_selected_pair, component_id, lfoundation, rfoundation}}, state}
   end
 
-  @spec handle_ice_message(
-          {:component_state_failed, stream_id :: non_neg_integer(),
-           component_id :: non_neg_integer()},
-          ctx :: PlaybackChange.t(),
-          state :: State.t()
-        ) :: Base.callback_return_t()
   def handle_ice_message({:component_state_failed, _stream_id, component_id}, _ctx, state) do
     Membrane.Logger.warn("Component #{component_id} state FAILED")
     {:ok, state}
   end
 
-  @spec handle_ice_message(
-          {:ice_payload, stream_id :: non_neg_integer(), component_id :: non_neg_integer(),
-           payload :: binary()},
-          ctx :: PlaybackChange.t(),
-          state :: State.t()
-        ) :: Base.callback_return_t()
   def handle_ice_message({:ice_payload, stream_id, component_id, payload}, _ctx, state) do
     %State{
       ice: ice,
@@ -255,12 +220,6 @@ defmodule Membrane.ICE.Common do
     end
   end
 
-  @spec handle_ice_message(
-          {:component_state_ready, stream_id :: non_neg_integer(),
-           component_id :: non_neg_integer()},
-          ctx :: PlaybackChange.t(),
-          state :: State.t()
-        ) :: Base.callback_return_t()
   def handle_ice_message({:component_state_ready, stream_id, component_id}, _ctx, state) do
     Membrane.Logger.debug("Component #{component_id} READY")
 
@@ -291,8 +250,6 @@ defmodule Membrane.ICE.Common do
     end
   end
 
-  @spec handle_ice_message(msg :: any(), ctx :: Other.t(), state :: State.t()) ::
-          Base.callback_return_t()
   def handle_ice_message(msg, _ctx, state) do
     Membrane.Logger.warn("Unknown message #{inspect(msg)}")
 
