@@ -4,7 +4,7 @@ defmodule Example.Receiver do
   require Membrane.Logger
 
   alias Example.Common
-  alias Membrane.Element.File
+  alias Membrane.File
 
   @impl true
   def handle_init(_) do

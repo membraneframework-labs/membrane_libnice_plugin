@@ -21,7 +21,7 @@ defmodule Example.Sender do
       }
     }
 
-    pad = Pad.ref(:input, component_id)
+    pad = Pad.ref(:input, 1)
     links = [link(:source) |> via_in(pad) |> to(:sink)]
     spec = %ParentSpec{children: children, links: links}
 

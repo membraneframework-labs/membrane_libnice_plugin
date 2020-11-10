@@ -3,7 +3,7 @@ defmodule Membrane.ICE.Support.TestReceiver do
 
   use Membrane.Pipeline
 
-  alias Membrane.Element.File
+  alias Membrane.File
 
   require Membrane.Logger
 
