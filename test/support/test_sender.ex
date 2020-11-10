@@ -15,35 +15,16 @@ defmodule Membrane.ICE.Support.TestSender do
         controlling_mode: true,
         handshake_module: opts[:handshake_module],
         handshake_opts: opts[:handshake_opts]
-      }
-    }
-
-    spec = %ParentSpec{
-      children: children
-    }
-
-    {{:ok, spec: spec}, %{}}
-  end
-
-  @impl true
-  def handle_notification(
-        {:component_state_ready, component_id, handshake_data},
-        _from,
-        _ctx,
-        state
-      ) do
-    Membrane.Logger.debug("Handshake data #{inspect(handshake_data)}")
-
-    children = %{
+      },
       source: %Hackney.Source{
         location: "https://membraneframework.github.io/static/video-samples/test-video.h264"
       }
     }
 
-    pad = Pad.ref(:input, component_id)
+    pad = Pad.ref(:input, 1)
     links = [link(:source) |> via_in(pad) |> to(:sink)]
     spec = %ParentSpec{children: children, links: links}
-    {{:ok, spec: spec}, state}
+    {{:ok, spec: spec}, %{}}
   end
 
   @impl true

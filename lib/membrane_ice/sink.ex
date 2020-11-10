@@ -3,27 +3,21 @@ defmodule Membrane.ICE.Sink do
   Element that sends buffers (over UDP or TCP) received on different pads to relevant receivers.
 
   ## Architecture and pad semantic
-  Each sink instance own exactly one stream which can have multiple components. There is no
+  Each sink instance owns exactly one stream which can have multiple components. There is no
   possibility to add more streams or remove the existing one. User specify number of components
   at Sink initialization by passing relevant option - see `def_options` macro for more
   information.
 
-  Multiple components are handled with dynamic pads. Each time component with id `component_id`
-  changes its state to READY (i.e. pipeline receives message
-  `{component_state_ready, component_id, handshake_data}` other elements can be linked to the Sink
+  Multiple components are handled with dynamic pads. Other elements can be linked to the Sink
   using pad with id `component_id`. After successful linking sending data to the Sink on newly
   added pad will cause conveying this data through the net using component with id `component_id`.
 
   For example if buffer was received on pad 1 the element will send it through component 1 to the
   receiver which then will convey this data through its pad 1 to some other element.
 
-  The pipeline or bin has to create link to this element after receiving
-  {:component_state_ready, component_id, handshake_data} message. Doing it earlier will cause an
-  error because given component is not in the READY state yet. Playing your pipeline is possible
-  only after linking all pads. E.g. if your stream has 2 components you have to wait for
-  `{component_state_ready, 1, handshake_data}` and `{component_state_ready, 2, handshake_data}`
-  messages, then link to Sink using two dynamic pads with ids 1 and 2 and after this you can play
-  your pipeline.
+  Other elements can be linked to the Sink in any moment but before playing pipeline. Playing your
+  pipeline is possible only after linking all pads. E.g. if your stream has 2 components you have to
+  link to the Sink using two dynamic pads with ids 1 and 2 and after this you can play your pipeline.
 
   ## Handshakes
   Membrane ICE Plugin provides mechanism for performing handshakes (e.g. DTLS-SRTP) after
@@ -123,6 +117,7 @@ defmodule Membrane.ICE.Sink do
 
   alias Membrane.Buffer
   alias Membrane.ICE.Common
+  alias Membrane.ICE.Common.State
   alias Membrane.ICE.Handshake
 
   require Unifex.CNode
@@ -191,7 +186,7 @@ defmodule Membrane.ICE.Sink do
         port_range: port_range
       )
 
-    state = %Common.State{
+    state = %State{
       ice: ice,
       controlling_mode: controlling_mode,
       n_components: n_components,
@@ -206,19 +201,6 @@ defmodule Membrane.ICE.Sink do
   @impl true
   def handle_stopped_to_prepared(ctx, state) do
     Common.handle_stopped_to_prepared(ctx, state)
-  end
-
-  @impl true
-  def handle_pad_added(Pad.ref(:input, component_id), _ctx, state) do
-    if MapSet.member?(state.connections, component_id) do
-      {:ok, state}
-    else
-      Membrane.Logger.error("""
-      Connection for component: #{component_id} not established yet. Cannot add pad
-      """)
-
-      {{:error, :connection_not_established_yet}, state}
-    end
   end
 
   @impl true
@@ -253,7 +235,85 @@ defmodule Membrane.ICE.Sink do
   end
 
   @impl true
+  def handle_other({:component_state_ready, stream_id, component_id}, ctx, state) do
+    Membrane.Logger.debug("Component #{component_id} READY")
+
+    %State{
+      ice: ice,
+      handshakes: handshakes,
+      handshake_module: handshake_module
+    } = state
+
+    {handshake_state, handshake_status, handshake_data} = Map.get(handshakes, component_id)
+
+    new_connections = MapSet.put(state.connections, component_id)
+    new_state = %State{state | connections: new_connections}
+
+    if handshake_status != :finished do
+      res = handshake_module.connection_ready(handshake_state)
+
+      {{finished?, handshake_data}, new_state} =
+        Common.parse_result(
+          res,
+          ice,
+          stream_id,
+          component_id,
+          handshakes,
+          handshake_state,
+          new_state
+        )
+
+      if finished? do
+        actions = prepare_actions(component_id, handshake_data, ctx.playback_state)
+        {{:ok, actions}, new_state}
+      else
+        {:ok, new_state}
+      end
+    else
+      actions = prepare_actions(component_id, handshake_data, ctx.playback_state)
+      {{:ok, actions}, new_state}
+    end
+  end
+
+  @impl true
+  def handle_other({:ice_payload, stream_id, component_id, payload}, ctx, state) do
+    %State{
+      ice: ice,
+      handshakes: handshakes,
+      handshake_module: handshake_module
+    } = state
+
+    {handshake_state, handshake_status, _handshake_data} = Map.get(handshakes, component_id)
+
+    if handshake_status != :finished do
+      res = handshake_module.recv_from_peer(handshake_state, payload)
+
+      {{finished?, handshake_data}, new_state} =
+        Common.parse_result(res, ice, stream_id, component_id, handshakes, handshake_state, state)
+
+      if finished? and MapSet.member?(state.connections, component_id) do
+        actions = prepare_actions(component_id, handshake_data, ctx.playback_state)
+        {{:ok, actions}, new_state}
+      else
+        {:ok, new_state}
+      end
+    else
+      {:ok, state}
+    end
+  end
+
+  @impl true
   def handle_other(msg, ctx, state) do
     Common.handle_ice_message(msg, ctx, state)
+  end
+
+  defp prepare_actions(component_id, handshake_data, playback_state) do
+    actions = [notify: {:component_state_ready, component_id, handshake_data}]
+
+    if playback_state == :playing do
+      [{:demand, Pad.ref(:input, component_id)} | actions]
+    else
+      actions
+    end
   end
 end

@@ -18,9 +18,15 @@ iex(1)> {:ok, pid} = Example.Sender.start_link()
 {:ok, #PID<0.274.0>}
 iex(bundlex_app_...)2> Example.Sender.prepare(pid)
 [info]  [pipeline@<0.318.0>] Pipeline playback state changed from stopped to prepared
-iex(bundlex_app_...)3> send(pid, :start)
+iex(bundlex_app_...)3> Example.Sender.play(pid)
+[info]  [pipeline@<0.318.0>] Pipeline playback state changed from prepared to playing
+iex(bundlex_app_...)4> send(pid, :start)
 :start
 ```
+
+Invoking `Exmaple.Sender.prepare(pid)` will add a new stream with one component.
+Then we play our pipeline and thanks to it we will start sending data as soon as we
+establish connection with our peer.
 
 Sending `:init` message will generate local SDP containing information about a stream and
 credentials. It will also start gathering candidates process.
@@ -44,10 +50,14 @@ iex(1)> {:ok, pid} = Example.Receiver.start_link()
 {:ok, #PID<0.351.0>}
 iex(bundlex_app_...)2> Example.Sender.prepare(pid)
 [info]  [pipeline@<0.324.0>] Pipeline playback state changed from stopped to prepared
-iex(bundlex_app_...)3> send(pid, :start)
+iex(bundlex_app_...)3> Example.Sender.play(pid)
+[info]  [pipeline@<0.324.0>] Pipeline playback state changed from prepared to playing
+iex(bundlex_app_...)4> send(pid, :start)
 :start
 ```
 Again you should see logs with local SDP and candidates.
+
+We also play pipeline instantly to receive messages as soon as possible.
 
 Next step is to exchange gathered information between peers.
 In order to do this type on the receiver machine:
@@ -78,37 +88,13 @@ After setting remote candidates both for the sender and receiver you should see 
 
 both on the sender and receiver side.
 
-At this moment we know that our peers are in the READY state and should be able to send and receive
-messages.
+At this moment we know that our peers are in the READY state. The sender will instantly
+download an example video file and send it to the receiver which will then save it to `/tmp`
+directory under `ice-recv.h264` file.
+
 Notice that with `component_state_ready` message you have also received some binary data.
 This is `keying material` generated during DTLS-SRTP handshake. It can be used for encryption, but
 we will not cover this at this moment.
-
-Let's check if our connection work.
-
-At first type on the receiver:
-```elixir
-Example.Receiver.play(pid)
-```
-
-and then on the sender:
-```elixir
-Example.Sender.play(pid)
-```
-
-It is important to `play` receiver at first because it has to prepare its internal element
-for receiving buffers and saving them into a proper file.
-In other case received buffers would be ignored (until you call `Example.Receiver.play(pid)`).
-
-After making both sides playing, the sender will download an example video file and send it to the
-receiver which will then save it to `/tmp` directory under `ice-recv.h264` file.
-
-Note: you can play Receiver in any moment you want. We do this after receiving `component_state_ready`
-message for tutorial purposes but there is no restriction when you can play ICE Source unlike in the
-case of ICE Sink. To play ICE Sink you have to first wait for `component_state_ready`
-notification in your pipeline which is sent by Sink, then you have to link another element
-to Sink pad and after this you can play your Sink. If you have more than one component
-you have to wait for all of them, link all of them and then play pipeline.
 
 You can test received video with:
 ```bash
@@ -117,4 +103,3 @@ ffplay -f h264 /tmp/ice-recv.h264
 
 That's it!
 You have connected two hosts using ICE protocol and send an example video file.
-Congrats!

@@ -8,7 +8,7 @@ defmodule Membrane.ICE.Source do
   ## Architecture and pad semantics
   Multiple components are handled with dynamic pads. Receiving data on component with id
   `component_id` will cause in conveying this data on pad with id `component_id`. Other elements
-  can be linked to the Source in any moment. There isn't any restriction like in the case of Sink.
+  can be linked to the Source in any moment but before playing pipeline.
 
   ## Interacting with Source
   Interacting with Source is the same as with Sink. Please refer to `Membrane.ICE.Sink` for
@@ -26,6 +26,7 @@ defmodule Membrane.ICE.Source do
 
   alias Membrane.Buffer
   alias Membrane.ICE.Common
+  alias Membrane.ICE.Common.State
   alias Membrane.ICE.Handshake
 
   require Unifex.CNode
@@ -93,7 +94,7 @@ defmodule Membrane.ICE.Source do
         port_range: port_range
       )
 
-    state = %Common.State{
+    state = %State{
       ice: ice,
       controlling_mode: controlling_mode,
       n_components: n_components,
@@ -111,11 +112,6 @@ defmodule Membrane.ICE.Source do
   end
 
   @impl true
-  def handle_pad_added(Pad.ref(:output, _component_id), _ctx, state) do
-    {:ok, state}
-  end
-
-  @impl true
   def handle_prepared_to_playing(ctx, state) do
     pad_states = 1..state.n_components |> Enum.map(&Map.has_key?(ctx.pads, Pad.ref(:output, &1)))
 
@@ -130,7 +126,7 @@ defmodule Membrane.ICE.Source do
   def handle_other(
         {:ice_payload, _stream_id, component_id, payload} = msg,
         %{playback_state: :playing} = ctx,
-        %Common.State{handshakes: handshakes} = state
+        %State{handshakes: handshakes} = state
       ) do
     Membrane.Logger.debug("Received payload: #{Membrane.Payload.size(payload)} bytes")
 
@@ -153,6 +149,71 @@ defmodule Membrane.ICE.Source do
         end
 
       {{:ok, actions}, state}
+    end
+  end
+
+  @impl true
+  def handle_other({:ice_payload, stream_id, component_id, payload}, _ctx, state) do
+    %State{
+      ice: ice,
+      handshakes: handshakes,
+      handshake_module: handshake_module
+    } = state
+
+    {handshake_state, handshake_status, _handshake_data} = Map.get(handshakes, component_id)
+
+    if handshake_status != :finished do
+      res = handshake_module.recv_from_peer(handshake_state, payload)
+
+      {{finished?, handshake_data}, new_state} =
+        Common.parse_result(res, ice, stream_id, component_id, handshakes, handshake_state, state)
+
+      if finished? and MapSet.member?(state.connections, component_id) do
+        {{:ok, notify: {:component_state_ready, component_id, handshake_data}}, new_state}
+      else
+        {:ok, new_state}
+      end
+    else
+      {:ok, state}
+    end
+  end
+
+  @impl true
+  def handle_other({:component_state_ready, stream_id, component_id}, _ctx, state) do
+    Membrane.Logger.debug("Component #{component_id} READY")
+
+    %State{
+      ice: ice,
+      handshakes: handshakes,
+      handshake_module: handshake_module
+    } = state
+
+    {handshake_state, handshake_status, handshake_data} = Map.get(handshakes, component_id)
+
+    new_connections = MapSet.put(state.connections, component_id)
+    new_state = %State{state | connections: new_connections}
+
+    if handshake_status != :finished do
+      res = handshake_module.connection_ready(handshake_state)
+
+      {{finished?, handshake_data}, new_state} =
+        Common.parse_result(
+          res,
+          ice,
+          stream_id,
+          component_id,
+          handshakes,
+          handshake_state,
+          new_state
+        )
+
+      if finished? do
+        {{:ok, notify: {:component_state_ready, component_id, handshake_data}}, new_state}
+      else
+        {:ok, new_state}
+      end
+    else
+      {{:ok, notify: {:component_state_ready, component_id, handshake_data}}, new_state}
     end
   end
 
