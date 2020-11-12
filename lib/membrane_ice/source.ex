@@ -135,19 +135,7 @@ defmodule Membrane.ICE.Source do
     if handshake_state != :finished do
       Common.handle_ice_message(msg, ctx, state)
     else
-      actions =
-        case Map.get(ctx.pads, Pad.ref(:output, component_id)) do
-          nil ->
-            Membrane.Logger.warn("""
-            Pad for component: #{component_id} not added yet. Ignoring payload.
-            """)
-
-            []
-
-          pad ->
-            [buffer: {pad.ref, %Buffer{payload: payload}}]
-        end
-
+      actions = [buffer: {Pad.ref(:output, component_id), %Buffer{payload: payload}}]
       {{:ok, actions}, state}
     end
   end

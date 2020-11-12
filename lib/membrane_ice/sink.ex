@@ -205,13 +205,14 @@ defmodule Membrane.ICE.Sink do
 
   @impl true
   def handle_prepared_to_playing(ctx, state) do
-    unlinked_components = Enum.reject(1..state.n_components, &Map.has_key?(ctx.pads, Pad.ref(:input, &1)))
+    unlinked_components =
+      Enum.reject(1..state.n_components, &Map.has_key?(ctx.pads, Pad.ref(:input, &1)))
 
-    if false in pad_states do
-      {{:error, "There are components without corresponding linked pads"}, state}
-    else
+    if Enum.empty?(unlinked_components) do
       demands = 1..state.n_components |> Enum.flat_map(&[demand: Pad.ref(:input, &1)])
       {{:ok, demands}, state}
+    else
+      raise "Pads for components no. #{Enum.join(unlinked_components, ", ")} haven't been linked"
     end
   end
 
