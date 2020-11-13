@@ -3,7 +3,7 @@ defmodule Membrane.ICE.Support.TestSender do
 
   use Membrane.Pipeline
 
-  alias Membrane.Element.Hackney
+  alias Membrane.Hackney
 
   require Membrane.Logger
 

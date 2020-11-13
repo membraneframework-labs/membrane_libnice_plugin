@@ -1,4 +1,4 @@
-# Membrane Multimedia Framework: Interactive Connectivity Establishment (ICE) Plugin
+# Membrane ICE plugin
 
 [![Hex.pm](https://img.shields.io/hexpm/v/membrane_ice_plugin.svg)](https://hex.pm/packages/membrane_ice_plugin)
 [![API Docs](https://img.shields.io/badge/api-docs-yellow.svg?style=flat)](https://hexdocs.pm/membrane_ice_plugin/)

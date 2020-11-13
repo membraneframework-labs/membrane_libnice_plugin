@@ -107,19 +107,8 @@ defmodule Membrane.ICE.Source do
   end
 
   @impl true
-  def handle_stopped_to_prepared(ctx, state) do
-    Common.handle_stopped_to_prepared(ctx, state)
-  end
-
-  @impl true
   def handle_prepared_to_playing(ctx, state) do
-    pad_states = 1..state.n_components |> Enum.map(&Map.has_key?(ctx.pads, Pad.ref(:output, &1)))
-
-    if false in pad_states do
-      {{:error, "There are components without corresponding linked pads"}, state}
-    else
-      {:ok, state}
-    end
+    Common.handle_prepared_to_playing(ctx, state, :output)
   end
 
   @impl true

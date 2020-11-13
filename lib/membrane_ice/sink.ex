@@ -50,20 +50,10 @@ defmodule Membrane.ICE.Sink do
     Result notifications:
     - `{:parse_remote_sdp_ok, added_cand_num}`
 
-  - `:get_local_credentials`
-
-    Result notifications:
-    - `{:local_credentials, credentials}`
-
   - `{:set_remote_credentials, credentials}`
 
     Result notifications:
     - none
-
-  - `:gather_candidates`
-
-    Result notifications:
-     - none
 
   - `:peer_candidate_gathering_done`
 
@@ -84,7 +74,7 @@ defmodule Membrane.ICE.Sink do
 
   - `{:new_candidate_full, candidate}`
 
-    Triggered by: `:gather_candidates`
+    Triggered by: starting pipeline i.e. `YourPipeline.play(pid)`
 
   - `{:new_remote_candidate_full, candidate}`
 
@@ -92,7 +82,7 @@ defmodule Membrane.ICE.Sink do
 
   - `:candidate_gathering_done`
 
-    Triggered by: `:gather_candidates`
+    Triggered by: starting pipeline i.e. `YourPipeline.play(pid)`
 
   - `{:new_selected_pair, component_id, lfoundation, rfoundation}`
 
@@ -199,21 +189,8 @@ defmodule Membrane.ICE.Sink do
   end
 
   @impl true
-  def handle_stopped_to_prepared(ctx, state) do
-    Common.handle_stopped_to_prepared(ctx, state)
-  end
-
-  @impl true
   def handle_prepared_to_playing(ctx, state) do
-    unlinked_components =
-      Enum.reject(1..state.n_components, &Map.has_key?(ctx.pads, Pad.ref(:input, &1)))
-
-    if Enum.empty?(unlinked_components) do
-      demands = 1..state.n_components |> Enum.flat_map(&[demand: Pad.ref(:input, &1)])
-      {{:ok, demands}, state}
-    else
-      raise "Pads for components no. #{Enum.join(unlinked_components, ", ")} haven't been linked"
-    end
+    Common.handle_prepared_to_playing(ctx, state, :input)
   end
 
   @impl true
