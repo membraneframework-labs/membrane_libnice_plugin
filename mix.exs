@@ -1,4 +1,4 @@
-defmodule Membrane.ICE.Mixfile do
+defmodule Membrane.ICE.Plugin.Mixfile do
   use Mix.Project
 
   @version "0.1.0"
