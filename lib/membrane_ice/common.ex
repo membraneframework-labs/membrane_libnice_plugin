@@ -64,9 +64,7 @@ defmodule Membrane.ICE.Common do
         {:error, cause} -> {{:error, cause}, state}
       end
     else
-      {{:error,
-        "Pads for components no. #{Enum.join(unlinked_components, ", ")} haven't been linked"},
-       state}
+      raise "Pads for components no. #{Enum.join(unlinked_components, ", ")} haven't been linked"
     end
   end
 

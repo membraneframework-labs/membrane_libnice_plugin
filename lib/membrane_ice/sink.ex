@@ -213,7 +213,7 @@ defmodule Membrane.ICE.Sink do
   end
 
   @impl true
-  def handle_other({:component_state_ready, stream_id, component_id}, ctx, state) do
+  def handle_other({:component_state_ready, stream_id, component_id}, _ctx, state) do
     Membrane.Logger.debug("Component #{component_id} READY")
 
     %State{
@@ -242,19 +242,19 @@ defmodule Membrane.ICE.Sink do
         )
 
       if finished? do
-        actions = prepare_actions(component_id, handshake_data, ctx.playback_state)
+        actions = prepare_actions(component_id, handshake_data)
         {{:ok, actions}, new_state}
       else
         {:ok, new_state}
       end
     else
-      actions = prepare_actions(component_id, handshake_data, ctx.playback_state)
+      actions = prepare_actions(component_id, handshake_data)
       {{:ok, actions}, new_state}
     end
   end
 
   @impl true
-  def handle_other({:ice_payload, stream_id, component_id, payload}, ctx, state) do
+  def handle_other({:ice_payload, stream_id, component_id, payload}, _ctx, state) do
     %State{
       ice: ice,
       handshakes: handshakes,
@@ -270,7 +270,7 @@ defmodule Membrane.ICE.Sink do
         Common.parse_result(res, ice, stream_id, component_id, handshakes, handshake_state, state)
 
       if finished? and MapSet.member?(state.connections, component_id) do
-        actions = prepare_actions(component_id, handshake_data, ctx.playback_state)
+        actions = prepare_actions(component_id, handshake_data)
         {{:ok, actions}, new_state}
       else
         {:ok, new_state}
@@ -285,13 +285,10 @@ defmodule Membrane.ICE.Sink do
     Common.handle_ice_message(msg, ctx, state)
   end
 
-  defp prepare_actions(component_id, handshake_data, playback_state) do
-    actions = [notify: {:component_state_ready, component_id, handshake_data}]
-
-    if playback_state == :playing do
-      [{:demand, Pad.ref(:input, component_id)} | actions]
-    else
-      actions
-    end
+  defp prepare_actions(component_id, handshake_data) do
+    [
+      notify: {:component_state_ready, component_id, handshake_data},
+      demand: Pad.ref(:input, component_id)
+    ]
   end
 end
