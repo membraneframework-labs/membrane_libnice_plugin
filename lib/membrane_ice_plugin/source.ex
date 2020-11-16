@@ -113,33 +113,15 @@ defmodule Membrane.ICE.Source do
 
   @impl true
   def handle_other(
-        {:ice_payload, _stream_id, component_id, payload} = msg,
+        {:ice_payload, stream_id, component_id, payload} = msg,
         %{playback_state: :playing} = ctx,
-        %State{handshakes: handshakes} = state
+        %State{ice: ice, handshakes: handshakes, handshake_module: handshake_module} = state
       ) do
     Membrane.Logger.debug("Received payload: #{Membrane.Payload.size(payload)} bytes")
 
     {_handshake_ctx, handshake_state, _handshake_data} = Map.get(handshakes, component_id)
 
     if handshake_state != :finished do
-      Common.handle_ice_message(msg, ctx, state)
-    else
-      actions = [buffer: {Pad.ref(:output, component_id), %Buffer{payload: payload}}]
-      {{:ok, actions}, state}
-    end
-  end
-
-  @impl true
-  def handle_other({:ice_payload, stream_id, component_id, payload}, _ctx, state) do
-    %State{
-      ice: ice,
-      handshakes: handshakes,
-      handshake_module: handshake_module
-    } = state
-
-    {handshake_state, handshake_status, _handshake_data} = Map.get(handshakes, component_id)
-
-    if handshake_status != :finished do
       res = handshake_module.recv_from_peer(handshake_state, payload)
 
       {{finished?, handshake_data}, new_state} =
@@ -151,7 +133,8 @@ defmodule Membrane.ICE.Source do
         {:ok, new_state}
       end
     else
-      {:ok, state}
+      actions = [buffer: {Pad.ref(:output, component_id), %Buffer{payload: payload}}]
+      {{:ok, actions}, state}
     end
   end
 
