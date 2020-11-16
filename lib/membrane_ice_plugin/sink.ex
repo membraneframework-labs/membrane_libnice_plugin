@@ -213,82 +213,17 @@ defmodule Membrane.ICE.Sink do
   end
 
   @impl true
-  def handle_other({:component_state_ready, stream_id, component_id}, _ctx, state) do
-    Membrane.Logger.debug("Component #{component_id} READY")
-
-    %State{
-      ice: ice,
-      handshakes: handshakes,
-      handshake_module: handshake_module
-    } = state
-
-    {handshake_state, handshake_status, handshake_data} = Map.get(handshakes, component_id)
-
-    new_connections = MapSet.put(state.connections, component_id)
-    new_state = %State{state | connections: new_connections}
-
-    if handshake_status != :finished do
-      res = handshake_module.connection_ready(handshake_state)
-
-      {{finished?, handshake_data}, new_state} =
-        Common.parse_result(
-          res,
-          ice,
-          stream_id,
-          component_id,
-          handshakes,
-          handshake_state,
-          new_state
-        )
-
-      if finished? do
-        actions = prepare_actions(component_id, handshake_data)
-        {{:ok, actions}, new_state}
-      else
-        {:ok, new_state}
-      end
-    else
-      actions = prepare_actions(component_id, handshake_data)
-      {{:ok, actions}, new_state}
-    end
+  def handle_other({:component_state_ready, _stream_id, _component_id} = msg, ctx, state) do
+    Common.handle_ice_message(msg, :sink, ctx, state)
   end
 
   @impl true
-  def handle_other({:ice_payload, stream_id, component_id, payload}, _ctx, state) do
-    %State{
-      ice: ice,
-      handshakes: handshakes,
-      handshake_module: handshake_module
-    } = state
-
-    {handshake_state, handshake_status, _handshake_data} = Map.get(handshakes, component_id)
-
-    if handshake_status != :finished do
-      res = handshake_module.recv_from_peer(handshake_state, payload)
-
-      {{finished?, handshake_data}, new_state} =
-        Common.parse_result(res, ice, stream_id, component_id, handshakes, handshake_state, state)
-
-      if finished? and MapSet.member?(state.connections, component_id) do
-        actions = prepare_actions(component_id, handshake_data)
-        {{:ok, actions}, new_state}
-      else
-        {:ok, new_state}
-      end
-    else
-      {:ok, state}
-    end
+  def handle_other({:ice_payload, _stream_id, _component_id, _payload} = msg, ctx, state) do
+    Common.handle_ice_message(msg, :sink, ctx, state)
   end
 
   @impl true
   def handle_other(msg, ctx, state) do
     Common.handle_ice_message(msg, ctx, state)
-  end
-
-  defp prepare_actions(component_id, handshake_data) do
-    [
-      notify: {:component_state_ready, component_id, handshake_data},
-      demand: Pad.ref(:input, component_id)
-    ]
   end
 end

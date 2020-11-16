@@ -24,7 +24,6 @@ defmodule Membrane.ICE.Source do
 
   use Membrane.Source
 
-  alias Membrane.Buffer
   alias Membrane.ICE.Common
   alias Membrane.ICE.Common.State
   alias Membrane.ICE.Handshake
@@ -112,69 +111,13 @@ defmodule Membrane.ICE.Source do
   end
 
   @impl true
-  def handle_other(
-        {:ice_payload, stream_id, component_id, payload} = msg,
-        %{playback_state: :playing} = ctx,
-        %State{ice: ice, handshakes: handshakes, handshake_module: handshake_module} = state
-      ) do
-    Membrane.Logger.debug("Received payload: #{Membrane.Payload.size(payload)} bytes")
-
-    {_handshake_ctx, handshake_state, _handshake_data} = Map.get(handshakes, component_id)
-
-    if handshake_state != :finished do
-      res = handshake_module.recv_from_peer(handshake_state, payload)
-
-      {{finished?, handshake_data}, new_state} =
-        Common.parse_result(res, ice, stream_id, component_id, handshakes, handshake_state, state)
-
-      if finished? and MapSet.member?(state.connections, component_id) do
-        {{:ok, notify: {:component_state_ready, component_id, handshake_data}}, new_state}
-      else
-        {:ok, new_state}
-      end
-    else
-      actions = [buffer: {Pad.ref(:output, component_id), %Buffer{payload: payload}}]
-      {{:ok, actions}, state}
-    end
+  def handle_other({:component_state_ready, _stream_id, _component_id} = msg, ctx, state) do
+    Common.handle_ice_message(msg, :source, ctx, state)
   end
 
   @impl true
-  def handle_other({:component_state_ready, stream_id, component_id}, _ctx, state) do
-    Membrane.Logger.debug("Component #{component_id} READY")
-
-    %State{
-      ice: ice,
-      handshakes: handshakes,
-      handshake_module: handshake_module
-    } = state
-
-    {handshake_state, handshake_status, handshake_data} = Map.get(handshakes, component_id)
-
-    new_connections = MapSet.put(state.connections, component_id)
-    new_state = %State{state | connections: new_connections}
-
-    if handshake_status != :finished do
-      res = handshake_module.connection_ready(handshake_state)
-
-      {{finished?, handshake_data}, new_state} =
-        Common.parse_result(
-          res,
-          ice,
-          stream_id,
-          component_id,
-          handshakes,
-          handshake_state,
-          new_state
-        )
-
-      if finished? do
-        {{:ok, notify: {:component_state_ready, component_id, handshake_data}}, new_state}
-      else
-        {:ok, new_state}
-      end
-    else
-      {{:ok, notify: {:component_state_ready, component_id, handshake_data}}, new_state}
-    end
+  def handle_other({:ice_payload, _stream_id, _component_id, _payload} = msg, ctx, state) do
+    Common.handle_ice_message(msg, :source, ctx, state)
   end
 
   @impl true

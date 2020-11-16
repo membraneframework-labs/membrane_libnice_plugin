@@ -199,6 +199,75 @@ defmodule Membrane.ICE.Common do
     {:ok, state}
   end
 
+  @spec handle_ice_message(
+          {:ice_payload, stream_id :: non_neg_integer(), component_id :: non_neg_integer(),
+           payload :: binary()}
+          | {:component_state_ready, stream_id :: non_neg_integer(),
+             component_id :: non_neg_integer()},
+          from :: :sink | :source,
+          ctx :: PlaybackChange.t() | Other.t(),
+          state :: State.t()
+        ) ::
+          Base.callback_return_t()
+  def handle_ice_message({:component_state_ready, stream_id, component_id}, from, _ctx, state) do
+    Membrane.Logger.debug("Component #{component_id} READY")
+
+    %State{
+      ice: ice,
+      handshakes: handshakes,
+      handshake_module: handshake_module
+    } = state
+
+    {handshake_state, handshake_status, handshake_data} = Map.get(handshakes, component_id)
+
+    new_connections = MapSet.put(state.connections, component_id)
+    new_state = %State{state | connections: new_connections}
+
+    if handshake_status != :finished do
+      res = handshake_module.connection_ready(handshake_state)
+
+      {{finished?, handshake_data}, new_state} =
+        parse_result(res, ice, stream_id, component_id, handshakes, handshake_state, new_state)
+
+      if finished? do
+        actions = prepare_handshake_actions(component_id, handshake_data, from)
+        {{:ok, actions}, new_state}
+      else
+        {:ok, new_state}
+      end
+    else
+      actions = prepare_handshake_actions(component_id, handshake_data, from)
+      {{:ok, actions}, new_state}
+    end
+  end
+
+  def handle_ice_message({:ice_payload, stream_id, component_id, payload}, from, _ctx, state) do
+    %State{
+      ice: ice,
+      handshakes: handshakes,
+      handshake_module: handshake_module
+    } = state
+
+    {handshake_state, handshake_status, _handshake_data} = Map.get(handshakes, component_id)
+
+    if handshake_status != :finished do
+      res = handshake_module.recv_from_peer(handshake_state, payload)
+
+      {{finished?, handshake_data}, new_state} =
+        parse_result(res, ice, stream_id, component_id, handshakes, handshake_state, state)
+
+      if finished? and MapSet.member?(state.connections, component_id) do
+        actions = prepare_handshake_actions(component_id, handshake_data, from)
+        {{:ok, actions}, new_state}
+      else
+        {:ok, new_state}
+      end
+    else
+      actions = prepare_payload_actions(component_id, payload, from)
+      {{:ok, actions}, state}
+    end
+  end
+
   @spec parse_result(
           res ::
             :ok
@@ -214,7 +283,7 @@ defmodule Membrane.ICE.Common do
         ) ::
           {{finished? :: bool(), handshake_data :: State.handshake_data()},
            new_state :: State.t()}
-  def parse_result(res, ice, stream_id, component_id, handshakes, handshake_status, state) do
+  defp parse_result(res, ice, stream_id, component_id, handshakes, handshake_status, state) do
     case res do
       :ok ->
         {{false, nil}, state}
@@ -239,5 +308,24 @@ defmodule Membrane.ICE.Common do
         new_state = %State{state | handshakes: handshakes}
         {{true, handshake_data}, new_state}
     end
+  end
+
+  defp prepare_handshake_actions(component_id, handshake_data, :sink) do
+    [
+      notify: {:component_state_ready, component_id, handshake_data},
+      demand: Pad.ref(:input, component_id)
+    ]
+  end
+
+  defp prepare_handshake_actions(component_id, handshake_data, :source) do
+    [notify: {:component_state_ready, component_id, handshake_data}]
+  end
+
+  defp prepare_payload_actions(_component_id, _payload, :sink) do
+    []
+  end
+
+  defp prepare_payload_actions(component_id, payload, :source) do
+    [buffer: {Pad.ref(:output, component_id), %Membrane.Buffer{payload: payload}}]
   end
 end
