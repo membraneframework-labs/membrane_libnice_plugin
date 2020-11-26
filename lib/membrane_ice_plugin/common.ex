@@ -322,6 +322,7 @@ defmodule Membrane.ICE.Common do
   end
 
   defp prepare_payload_actions(_component_id, _payload, :sink) do
+    Membrane.Logger.warn("Sink shouldn't receive payload. Ignoring...")
     []
   end
 
