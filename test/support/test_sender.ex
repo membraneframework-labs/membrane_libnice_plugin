@@ -3,7 +3,7 @@ defmodule Membrane.ICE.Support.TestSender do
 
   use Membrane.Pipeline
 
-  alias Membrane.Element.Hackney
+  alias Membrane.Hackney
 
   require Membrane.Logger
 
@@ -15,40 +15,16 @@ defmodule Membrane.ICE.Support.TestSender do
         controlling_mode: true,
         handshake_module: opts[:handshake_module],
         handshake_opts: opts[:handshake_opts]
-      }
-    }
-
-    spec = %ParentSpec{
-      children: children
-    }
-
-    {{:ok, spec: spec}, %{}}
-  end
-
-  @impl true
-  def handle_prepared_to_playing(_ctx, state) do
-    children = %{
+      },
       source: %Hackney.Source{
         location: "https://membraneframework.github.io/static/video-samples/test-video.h264"
       }
     }
 
-    pad = Pad.ref(:input, state.component_id)
+    pad = Pad.ref(:input, 1)
     links = [link(:source) |> via_in(pad) |> to(:sink)]
     spec = %ParentSpec{children: children, links: links}
-    {{:ok, spec: spec}, state}
-  end
-
-  @impl true
-  def handle_notification(
-        {:component_state_ready, component_id, handshake_data},
-        _from,
-        _ctx,
-        _state
-      ) do
-    Membrane.Logger.debug("Handshake data #{inspect(handshake_data)}")
-    new_state = %{:component_id => component_id}
-    {:ok, new_state}
+    {{:ok, spec: spec}, %{}}
   end
 
   @impl true

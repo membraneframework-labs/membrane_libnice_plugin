@@ -31,21 +31,15 @@ defmodule Membrane.ICE.IntegrationTest do
         ]
       })
 
-    Testing.Pipeline.prepare(tx_pid)
-    Testing.Pipeline.prepare(rx_pid)
-
-    # setup sink
-    Testing.Pipeline.message_child(tx_pid, :sink, :get_local_credentials)
-    assert_pipeline_notified(tx_pid, :sink, {:local_credentials, tx_credentials})
-
-    # setup source
-    Testing.Pipeline.message_child(rx_pid, :source, :get_local_credentials)
-    assert_pipeline_notified(rx_pid, :source, {:local_credentials, rx_credentials})
+    :ok = Testing.Pipeline.play(rx_pid)
+    :ok = Testing.Pipeline.play(tx_pid)
 
     # set credentials
+    assert_pipeline_notified(rx_pid, :source, {:local_credentials, rx_credentials})
     cred_msg = {:set_remote_credentials, rx_credentials}
     Testing.Pipeline.message_child(tx_pid, :sink, cred_msg)
 
+    assert_pipeline_notified(tx_pid, :sink, {:local_credentials, tx_credentials})
     cred_msg = {:set_remote_credentials, tx_credentials}
     Testing.Pipeline.message_child(rx_pid, :source, cred_msg)
 
@@ -53,10 +47,6 @@ defmodule Membrane.ICE.IntegrationTest do
     Testing.Pipeline.message_child(tx_pid, :sink, :gather_candidates)
     Testing.Pipeline.message_child(rx_pid, :source, :gather_candidates)
     set_remote_candidates(tx_pid, rx_pid)
-
-    # send and receive data
-    Testing.Pipeline.play(rx_pid)
-    Testing.Pipeline.play(tx_pid)
 
     :timer.sleep(1000)
 

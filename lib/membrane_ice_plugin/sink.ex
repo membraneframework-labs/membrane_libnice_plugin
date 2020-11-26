@@ -3,23 +3,21 @@ defmodule Membrane.ICE.Sink do
   Element that sends buffers (over UDP or TCP) received on different pads to relevant receivers.
 
   ## Architecture and pad semantic
-  Each sink instance own exactly one stream which can have multiple components. There is no
+  Each sink instance owns exactly one stream which can have multiple components. There is no
   possibility to add more streams or remove the existing one. User specify number of components
   at Sink initialization by passing relevant option - see `def_options` macro for more
   information.
 
-  Multiple components are handled with dynamic pads. Each time component with id `component_id`
-  changes its state to READY (i.e. pipeline receives message
-  `{component_state_ready, component_id, handshake_data}` other elements can be linked to the Sink
+  Multiple components are handled with dynamic pads. Other elements can be linked to the Sink
   using pad with id `component_id`. After successful linking sending data to the Sink on newly
   added pad will cause conveying this data through the net using component with id `component_id`.
 
   For example if buffer was received on pad 1 the element will send it through component 1 to the
   receiver which then will convey this data through its pad 1 to some other element.
 
-  The pipeline or bin has to create link to this element after receiving
-  {:component_state_ready, component_id, handshake_data} message. Doing it earlier will cause an
-  error because given component is not in the READY state yet.
+  Other elements can be linked to the Sink in any moment but before playing pipeline. Playing your
+  pipeline is possible only after linking all pads. E.g. if your stream has 2 components you have to
+  link to the Sink using two dynamic pads with ids 1 and 2 and after this you can play your pipeline.
 
   ## Handshakes
   Membrane ICE Plugin provides mechanism for performing handshakes (e.g. DTLS-SRTP) after
@@ -52,20 +50,10 @@ defmodule Membrane.ICE.Sink do
     Result notifications:
     - `{:parse_remote_sdp_ok, added_cand_num}`
 
-  - `:get_local_credentials`
-
-    Result notifications:
-    - `{:local_credentials, credentials}`
-
   - `{:set_remote_credentials, credentials}`
 
     Result notifications:
     - none
-
-  - `:gather_candidates`
-
-    Result notifications:
-     - none
 
   - `:peer_candidate_gathering_done`
 
@@ -86,7 +74,7 @@ defmodule Membrane.ICE.Sink do
 
   - `{:new_candidate_full, candidate}`
 
-    Triggered by: `:gather_candidates`
+    Triggered by: starting pipeline i.e. `YourPipeline.play(pid)`
 
   - `{:new_remote_candidate_full, candidate}`
 
@@ -94,7 +82,7 @@ defmodule Membrane.ICE.Sink do
 
   - `:candidate_gathering_done`
 
-    Triggered by: `:gather_candidates`
+    Triggered by: starting pipeline i.e. `YourPipeline.play(pid)`
 
   - `{:new_selected_pair, component_id, lfoundation, rfoundation}`
 
@@ -119,6 +107,7 @@ defmodule Membrane.ICE.Sink do
 
   alias Membrane.Buffer
   alias Membrane.ICE.Common
+  alias Membrane.ICE.Common.State
   alias Membrane.ICE.Handshake
 
   require Unifex.CNode
@@ -187,7 +176,7 @@ defmodule Membrane.ICE.Sink do
         port_range: port_range
       )
 
-    state = %Common.State{
+    state = %State{
       ice: ice,
       controlling_mode: controlling_mode,
       n_components: n_components,
@@ -200,21 +189,8 @@ defmodule Membrane.ICE.Sink do
   end
 
   @impl true
-  def handle_stopped_to_prepared(ctx, state) do
-    Common.handle_stopped_to_prepared(ctx, state)
-  end
-
-  @impl true
-  def handle_pad_added(Pad.ref(:input, component_id) = pad, _ctx, state) do
-    if MapSet.member?(state.connections, component_id) do
-      {{:ok, demand: pad}, state}
-    else
-      Membrane.Logger.error("""
-      Connection for component: #{component_id} not established yet. Cannot add pad
-      """)
-
-      {{:error, :connection_not_established_yet}, state}
-    end
+  def handle_prepared_to_playing(ctx, state) do
+    Common.handle_prepared_to_playing(ctx, state, :input)
   end
 
   @impl true
@@ -234,6 +210,16 @@ defmodule Membrane.ICE.Sink do
       {:error, cause} ->
         {{:ok, notify: {:could_not_send_payload, cause}}, state}
     end
+  end
+
+  @impl true
+  def handle_other({:component_state_ready, _stream_id, _component_id} = msg, ctx, state) do
+    Common.handle_ice_message(msg, :sink, ctx, state)
+  end
+
+  @impl true
+  def handle_other({:ice_payload, _stream_id, _component_id, _payload} = msg, ctx, state) do
+    Common.handle_ice_message(msg, :sink, ctx, state)
   end
 
   @impl true

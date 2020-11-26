@@ -23,13 +23,9 @@ defmodule ExampleProject.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:membrane_core,
-       git: "https://github.com/membraneframework/membrane_core.git", override: true},
-      {:membrane_dtls_plugin,
-       git: "https://github.com/membraneframework/membrane_dtls_plugin.git"},
-      {:membrane_element_file,
-       git: "https://github.com/membraneframework/membrane-element-file", branch: "master"},
-      {:membrane_element_hackney, "~> 0.2"}
+      {:membrane_ice_plugin, path: "../.."},
+      {:membrane_file_plugin, "~> 0.5.0"},
+      {:membrane_hackney_plugin, "~> 0.4.0"}
     ]
   end
 end

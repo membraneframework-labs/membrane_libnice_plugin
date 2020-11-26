@@ -4,55 +4,32 @@ defmodule Example.Sender do
   require Membrane.Logger
 
   alias Example.Common
-  alias Membrane.Element.Hackney
+  alias Membrane.Hackney
 
   @impl true
   def handle_init(_) do
     children = %{
       sink: %Membrane.ICE.Sink{
-        stream_name: "audio",
+        stream_name: "video",
         stun_servers: ["64.233.161.127:19302"],
         controlling_mode: true,
-        handshake_module: Membrane.DTLS.Handshake,
-        handshake_opts: [client_mode: true, dtls_srtp: true]
-      }
-    }
-
-    spec = %ParentSpec{
-      children: children
-    }
-
-    {{:ok, spec: spec}, %{}}
-  end
-
-  @impl true
-  def handle_prepared_to_playing(_ctx, state) do
-    children = %{
+        handshake_module: Membrane.ICE.Handshake.Default,
+      },
       source: %Hackney.Source{
         location: "https://membraneframework.github.io/static/video-samples/test-video.h264"
       }
     }
 
-    pad = Pad.ref(:input, state.ready_component)
+    pad = Pad.ref(:input, 1)
     links = [link(:source) |> via_in(pad) |> to(:sink)]
     spec = %ParentSpec{children: children, links: links}
-    {{:ok, spec: spec}, state}
-  end
 
-  @impl true
-  def handle_notification({:local_sdp, _sdp} = msg, _from, _ctx, state) do
-    Membrane.Logger.info("#{inspect(msg)}")
-    {{:ok, forward: {:sink, :gather_candidates}}, state}
+    {{:ok, spec: spec}, %{}}
   end
 
   @impl true
   def handle_notification(other, from, ctx, state) do
     Common.handle_notification(other, from, ctx, state)
-  end
-
-  @impl true
-  def handle_other(:start, _ctx, state) do
-    {{:ok, forward: {:sink, :generate_local_sdp}}, state}
   end
 
   @impl true

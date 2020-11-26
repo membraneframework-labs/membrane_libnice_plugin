@@ -3,7 +3,7 @@ defmodule Membrane.ICE.Support.TestReceiver do
 
   use Membrane.Pipeline
 
-  alias Membrane.Element.File
+  alias Membrane.File
 
   require Membrane.Logger
 
@@ -15,28 +15,21 @@ defmodule Membrane.ICE.Support.TestReceiver do
         controlling_mode: false,
         handshake_module: opts[:handshake_module],
         handshake_opts: opts[:handshake_opts]
+      },
+      sink: %File.Sink{
+        location: opts[:file_path]
       }
     }
+
+    pad = Pad.ref(:output, 1)
+    links = [link(:source) |> via_out(pad) |> to(:sink)]
 
     spec = %ParentSpec{
-      children: children
+      children: children,
+      links: links
     }
 
-    {{:ok, spec: spec}, %{:file_path => opts[:file_path]}}
-  end
-
-  @impl true
-  def handle_prepared_to_playing(_ctx, %{file_path: file_path} = state) do
-    children = %{
-      sink: %File.Sink{
-        location: file_path
-      }
-    }
-
-    pad = Pad.ref(:output, state.component_id)
-    links = [link(:source) |> via_out(pad) |> to(:sink)]
-    spec = %ParentSpec{children: children, links: links}
-    {{:ok, spec: spec}, state}
+    {{:ok, spec: spec}, %{}}
   end
 
   @impl true

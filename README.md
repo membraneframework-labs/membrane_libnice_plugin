@@ -1,6 +1,7 @@
-# Membrane Multimedia Framework: Interactive Connectivity Establishment (ICE) Plugin
+# Membrane ICE plugin
 
 [![Hex.pm](https://img.shields.io/hexpm/v/membrane_ice_plugin.svg)](https://hex.pm/packages/membrane_ice_plugin)
+[![API Docs](https://img.shields.io/badge/api-docs-yellow.svg?style=flat)](https://hexdocs.pm/membrane_ice_plugin/)
 [![CircleCI](https://circleci.com/gh/membraneframework/membrane_ice_plugin.svg?style=svg)](https://circleci.com/gh/membraneframework/membrane_ice_plugin)
 
 This package uses [ex_libnice] to provide GStreamer-style ICE source & sink elements.

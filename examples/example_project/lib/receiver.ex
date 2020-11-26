@@ -4,7 +4,7 @@ defmodule Example.Receiver do
   require Membrane.Logger
 
   alias Example.Common
-  alias Membrane.Element.File
+  alias Membrane.File
 
   @impl true
   def handle_init(_) do
@@ -12,46 +12,27 @@ defmodule Example.Receiver do
       source: %Membrane.ICE.Source{
         stun_servers: ["64.233.161.127:19302"],
         controlling_mode: false,
-        handshake_module: Membrane.DTLS.Handshake,
-        handshake_opts: [client_mode: false, dtls_srtp: true]
+        handshake_module: Membrane.ICE.Handshake.Default,
+      },
+      sink: %File.Sink{
+        location: "/tmp/ice-recv.h264"
       }
     }
 
+    pad = Pad.ref(:output, 1)
+    links = [link(:source) |> via_out(pad) |> to(:sink)]
+
     spec = %ParentSpec{
-      children: children
+      children: children,
+      links: links
     }
 
     {{:ok, spec: spec}, %{}}
   end
 
   @impl true
-  def handle_prepared_to_playing(_ctx, state) do
-    children = %{
-      sink: %File.Sink{
-        location: "/tmp/ice-recv.h264"
-      }
-    }
-
-    pad = Pad.ref(:output, state.ready_component)
-    links = [link(:source) |> via_out(pad) |> to(:sink)]
-    spec = %ParentSpec{children: children, links: links}
-    {{:ok, spec: spec}, state}
-  end
-
-  @impl true
-  def handle_notification({:local_sdp, _sdp} = msg, _from, _ctx, state) do
-    Membrane.Logger.info("#{inspect(msg)}")
-    {{:ok, forward: {:source, :gather_candidates}}, state}
-  end
-
-  @impl true
   def handle_notification(other, from, ctx, state) do
     Common.handle_notification(other, from, ctx, state)
-  end
-
-  @impl true
-  def handle_other(:start, _ctx, state) do
-    {{:ok, forward: {:source, :generate_local_sdp}}, state}
   end
 
   @impl true
