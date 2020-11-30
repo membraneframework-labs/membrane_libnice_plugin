@@ -1,4 +1,10 @@
 defmodule Membrane.ICE.Bin do
+  use Membrane.Bin
+
+  alias Membrane.ICE.Connector
+
+  require Membrane.Logger
+
   def_options n_components: [
                 type: :integer,
                 default: 1,
@@ -42,6 +48,11 @@ defmodule Membrane.ICE.Bin do
     mode: :pull,
     demand_unit: :buffers
 
+  def_output_pad :output,
+    availability: :on_request,
+    caps: :any,
+    mode: :push
+
   @impl true
   def handle_init(options) do
     %__MODULE__{
@@ -69,66 +80,87 @@ defmodule Membrane.ICE.Bin do
     {:ok, ice} = Connector.get_ice_pid(connector)
 
     children = [
-      source: %Membrane.ICE.Source{
-        n_components: n_components
-      },
-      sink: %Membrane.ICE.Sink{
-        ice: ice,
-        n_components: n_components
-      }
+      ice_source: Membrane.ICE.Source,
+      ice_sink: %Membrane.ICE.Sink{ice: ice}
     ]
 
     spec = %ParentSpec{
       children: children
     }
 
-    {{:ok, spec: spec}, %{connector => connector}}
-  end
-
-  @impl true
-  def handle_pad_added(Pad.ref(:input, _) = pad, _ctx, state) do
-    links = [link_bin_input(pad) |> to(:source)]
-    {{:ok, spec: %ParentSpec{links: links}}, state}
+    {{:ok, spec: spec}, %{:connector => connector}}
   end
 
   @impl true
   def handle_pad_added(Pad.ref(:output, _) = pad, _ctx, state) do
-    links = [link_bin_input(pad) |> to(:sink)]
+    links = [link(:ice_source) |> via_out(pad) |> to_bin_output(pad)]
     {{:ok, spec: %ParentSpec{links: links}}, state}
   end
 
   @impl true
-  def handle_prepared_to_playing(ctx, %{connector: connector} = state) do
-    check_pads(:input)
-    check_pads(:output)
+  def handle_pad_added(Pad.ref(:input, _) = pad, _ctx, state) do
+    links = [link_bin_input(pad) |> via_in(pad) |> to(:ice_sink)]
+    {{:ok, spec: %ParentSpec{links: links}}, state}
+  end
 
+  @impl true
+  def handle_prepared_to_playing(_ctx, %{connector: connector} = state) do
     {:local_credentials, credentials} = Connector.run(connector)
     {{:ok, notify: {:local_credentials, credentials}}, state}
   end
 
-  defp check_pads(pads_type) do
-    unlinked_components =
-      Enum.reject(1..state.n_components, &Map.has_key?(ctx.pads, Pad.ref(pads_type, &1)))
+  @impl true
+  def handle_other(
+        {:set_remote_credentials, credentials},
+        _ctx,
+        %{connector: connector} = state
+      ) do
+    Connector.set_remote_credentials(connector, credentials)
+    {:ok, state}
+  end
 
-    if Enum.empty?(unlinked_components) do
-      {:ok, state}
+  @impl true
+  def handle_other(
+        {:set_remote_candidate, cand, component_id},
+        _ctx,
+        %{connector: connector} = state
+      ) do
+    Connector.set_remote_candidate(connector, cand, component_id)
+    {:ok, state}
+  end
+
+  @impl true
+  def handle_other(
+        {:component_ready, _stream_id, component_id, handshake_data} = msg,
+        ctx,
+        state
+      ) do
+    actions =
+      cond do
+        Map.has_key?(ctx.pads, Pad.ref(:input, component_id)) ->
+          [forward: {:ice_sink, msg}, notify: {:component_ready, component_id, handshake_data}]
+
+        Map.has_key?(ctx.pads, Pad.ref(:output, component_id)) ->
+          [notify: {:component_ready, component_id, handshake_data}]
+
+        true ->
+          []
+      end
+
+    {{:ok, actions}, state}
+  end
+
+  @impl true
+  def handle_other({:ice_payload, component_id, _payload} = msg, ctx, state) do
+    if Map.has_key?(ctx.pads, Pad.ref(:output, component_id)) do
+      {{:ok, forward: {:ice_source, msg}}, state}
     else
-      raise "Pads #{pads_type} for components no. #{Enum.join(unlinked_components, ", ")} haven't been linked"
+      {:ok, state}
     end
   end
 
   @impl true
-  def handle_other({:component_ready, stream_id, component_id, handshake_data} = msg, ctx, state) do
-    {{:ok, forward: {:sink, msg}}, state}
-  end
-
-  @impl true
-  def handle_other({:ice_payload, _component_id, _payload} = msg, ctx, state) do
-    {{:ok, forward: {:source, msg}}, state}
-  end
-
-  @impl true
-  def handle_other(msg, ctx, state) do
+  def handle_other(msg, _ctx, state) do
     {{:ok, notify: msg}, state}
   end
 end

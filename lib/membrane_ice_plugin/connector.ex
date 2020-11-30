@@ -1,7 +1,6 @@
-defmodule Membrane.ICE.Sink do
+defmodule Membrane.ICE.Connector do
   use GenServer
 
-  alias Membrane.Buffer
   alias Membrane.ICE.Handshake
 
   require Unifex.CNode
@@ -110,32 +109,6 @@ defmodule Membrane.ICE.Sink do
     end
   end
 
-  defp add_stream(state) do
-    %State{
-      ice: ice,
-      n_components: n_components,
-      stream_name: stream_name,
-      handshake_module: handshake_module,
-      handshake_opts: handshake_opts
-    } = state
-
-    case ExLibnice.add_stream(ice, n_components, stream_name) do
-      {:ok, stream_id} ->
-        handshakes =
-          1..n_components
-          |> Map.new(&{&1, parse_handshake_init_res(handshake_module.init(handshake_opts))})
-
-        new_state = %State{state | stream_id: stream_id, handshakes: handshakes}
-        {:ok, new_state}
-
-      {:error, cause} ->
-        {:error, cause}
-    end
-  end
-
-  defp parse_handshake_init_res({:ok, ctx}), do: {ctx, :in_progress, nil}
-  defp parse_handshake_init_res(:finished), do: {nil, :finished, nil}
-
   def handle_call(:generate_local_sdp, _from, %State{ice: ice} = state) do
     {:ok, local_sdp} = ExLibnice.generate_local_sdp(ice)
 
@@ -217,15 +190,12 @@ defmodule Membrane.ICE.Sink do
     {:noreply, state}
   end
 
-  def handle_info(
-        {:component_state_failed, _stream_id, component_id},
-        %State{parent: parent} = state
-      ) do
+  def handle_info({:component_state_failed, _stream_id, component_id}, state) do
     Membrane.Logger.warn("Component #{component_id} state FAILED")
     {:noreply, state}
   end
 
-  def handle_info({:component_state_ready, stream_id, component_id}, from, state) do
+  def handle_info({:component_state_ready, stream_id, component_id}, state) do
     Membrane.Logger.debug("Component #{component_id} READY")
 
     %State{
@@ -260,7 +230,7 @@ defmodule Membrane.ICE.Sink do
     end
   end
 
-  def handle_info({:ice_payload, stream_id, component_id, payload}, from, state) do
+  def handle_info({:ice_payload, stream_id, component_id, payload}, state) do
     %State{
       parent: parent,
       ice: ice,
@@ -289,6 +259,32 @@ defmodule Membrane.ICE.Sink do
       {:noreply, state}
     end
   end
+
+  defp add_stream(state) do
+    %State{
+      ice: ice,
+      n_components: n_components,
+      stream_name: stream_name,
+      handshake_module: handshake_module,
+      handshake_opts: handshake_opts
+    } = state
+
+    case ExLibnice.add_stream(ice, n_components, stream_name) do
+      {:ok, stream_id} ->
+        handshakes =
+          1..n_components
+          |> Map.new(&{&1, parse_handshake_init_res(handshake_module.init(handshake_opts))})
+
+        new_state = %State{state | stream_id: stream_id, handshakes: handshakes}
+        {:ok, new_state}
+
+      {:error, cause} ->
+        {:error, cause}
+    end
+  end
+
+  defp parse_handshake_init_res({:ok, ctx}), do: {ctx, :in_progress, nil}
+  defp parse_handshake_init_res(:finished), do: {nil, :finished, nil}
 
   @spec parse_result(
           res ::

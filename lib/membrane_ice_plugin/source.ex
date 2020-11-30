@@ -13,8 +13,6 @@ defmodule Membrane.ICE.Source do
 
   use Membrane.Source
 
-  alias Membrane.ICE.Common
-
   require Membrane.Logger
 
   def_output_pad :output,
@@ -28,7 +26,7 @@ defmodule Membrane.ICE.Source do
   end
 
   @impl true
-  def handle_notification({:ice_payload, component_id, payload} = msg, _from, ctx, state) do
+  def handle_other({:ice_payload, component_id, payload}, _ctx, state) do
     actions = [buffer: {Pad.ref(:output, component_id), %Membrane.Buffer{payload: payload}}]
     {{:ok, actions}, state}
   end

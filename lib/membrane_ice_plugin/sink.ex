@@ -23,8 +23,6 @@ defmodule Membrane.ICE.Sink do
 
   use Membrane.Sink
 
-  alias Membrane.ICE.Common
-
   require Membrane.Logger
 
   def_options ice: [
@@ -49,13 +47,12 @@ defmodule Membrane.ICE.Sink do
   @impl true
   def handle_write(
         Pad.ref(:input, component_id) = pad,
-        %Buffer{payload: payload},
+        %Membrane.Buffer{payload: payload},
         _ctx,
-        %{stream_id: stream_id} = state
+        %{ice: ice, stream_id: stream_id} = state
       ) do
     case ExLibnice.send_payload(ice, stream_id, component_id, payload) do
       :ok ->
-        Membrane.Logger.debug("Sent payload: #{payload_size} bytes")
         {{:ok, demand: pad}, state}
 
       {:error, cause} ->
@@ -63,7 +60,7 @@ defmodule Membrane.ICE.Sink do
     end
   end
 
-  def handle_notification({:component_ready, stream_id, component_id}, from, ctx, state) do
+  def handle_other({:component_ready, stream_id, component_id, _handshake_data}, _ctx, state) do
     Membrane.Logger.debug("Got component_id #{component_id}. Sending demands...")
     actions = [demand: Pad.ref(:input, component_id)]
     # FIXME handle stream_id in a better way
