@@ -17,24 +17,14 @@ defmodule Membrane.ICE.Source do
 
   require Membrane.Logger
 
-  def_options n_components: [
-                type: :integer,
-                default: 1,
-                description: "Number of components specified in connector"
-              ]
-
   def_output_pad :output,
     availability: :on_request,
     caps: :any,
     mode: :push
 
   @impl true
-  def handle_init(options) do
-    %__MODULE__{
-      n_components: n_components
-    } = options
-
-    {:ok, %{n_components => n_components}}
+  def handle_init(_opts) do
+    {:ok, %{}}
   end
 
   @impl true

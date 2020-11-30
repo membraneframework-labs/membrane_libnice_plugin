@@ -31,11 +31,6 @@ defmodule Membrane.ICE.Sink do
                 type: :pid,
                 default: nil,
                 description: "Pid of ExLibnice instance"
-              ],
-              n_components: [
-                type: :integer,
-                default: 1,
-                description: "Number of components specified in connector"
               ]
 
   def_input_pad :input,
@@ -46,12 +41,9 @@ defmodule Membrane.ICE.Sink do
 
   @impl true
   def handle_init(options) do
-    %__MODULE__{
-      ice: ice,
-      n_components: n_components
-    } = options
+    %__MODULE__{ice: ice} = options
 
-    {:ok, %{:ice => ice, :n_components => n_components}}
+    {:ok, %{:ice => ice}}
   end
 
   @impl true
