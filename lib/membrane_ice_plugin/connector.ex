@@ -247,14 +247,14 @@ defmodule Membrane.ICE.Sink do
         parse_result(res, ice, stream_id, component_id, handshakes, handshake_state, new_state)
 
       if finished? do
-        msg = {:component_state_ready, component_id, handshake_data}
+        msg = {:component_ready, stream_id, component_id, handshake_data}
         send(parent, msg)
         {:noreply, new_state}
       else
         {:noreply, new_state}
       end
     else
-      msg = {:component_state_ready, component_id, handshake_data}
+      msg = {:component_ready, stream_id, component_id, handshake_data}
       send(parent, msg)
       {:noreply, new_state}
     end
@@ -277,7 +277,7 @@ defmodule Membrane.ICE.Sink do
         parse_result(res, ice, stream_id, component_id, handshakes, handshake_state, state)
 
       if finished? and MapSet.member?(state.connections, component_id) do
-        msg = {:component_state_ready, component_id, handshake_data}
+        msg = {:component_ready, stream_id, component_id, handshake_data}
         send(parent, msg)
         {:noreply, new_state}
       else

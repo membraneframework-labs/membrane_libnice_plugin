@@ -38,11 +38,6 @@ defmodule Membrane.ICE.Source do
   end
 
   @impl true
-  def handle_prepared_to_playing(ctx, state) do
-    Common.handle_prepared_to_playing(ctx, state)
-  end
-
-  @impl true
   def handle_notification({:ice_payload, component_id, payload} = msg, _from, ctx, state) do
     actions = [buffer: {Pad.ref(:output, component_id), %Membrane.Buffer{payload: payload}}]
     {{:ok, actions}, state}

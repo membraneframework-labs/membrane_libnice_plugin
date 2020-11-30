@@ -55,11 +55,6 @@ defmodule Membrane.ICE.Sink do
   end
 
   @impl true
-  def handle_prepared_to_playing(ctx, state) do
-    Common.handle_prepared_to_playing(ctx, state)
-  end
-
-  @impl true
   def handle_write(
         Pad.ref(:input, component_id) = pad,
         %Buffer{payload: payload},
