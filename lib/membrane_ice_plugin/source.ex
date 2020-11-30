@@ -13,7 +13,7 @@ defmodule Membrane.ICE.Source do
 
   use Membrane.Source
 
-  alias Membrane.ICE.Common2
+  alias Membrane.ICE.Common
 
   require Membrane.Logger
 
@@ -39,7 +39,7 @@ defmodule Membrane.ICE.Source do
 
   @impl true
   def handle_prepared_to_playing(ctx, state) do
-    Common2.handle_prepared_to_playing(ctx, state)
+    Common.handle_prepared_to_playing(ctx, state)
   end
 
   @impl true

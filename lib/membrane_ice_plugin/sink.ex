@@ -23,7 +23,7 @@ defmodule Membrane.ICE.Sink do
 
   use Membrane.Sink
 
-  alias Membrane.ICE.Common2
+  alias Membrane.ICE.Common
 
   require Membrane.Logger
 
@@ -56,11 +56,16 @@ defmodule Membrane.ICE.Sink do
 
   @impl true
   def handle_prepared_to_playing(ctx, state) do
-    Common2.handle_prepared_to_playing(ctx, state)
+    Common.handle_prepared_to_playing(ctx, state)
   end
 
   @impl true
-  def handle_write(Pad.ref(:input, component_id) = pad, %Buffer{payload: payload}, _ctx, %{stream_id: stream_id} = state) do
+  def handle_write(
+        Pad.ref(:input, component_id) = pad,
+        %Buffer{payload: payload},
+        _ctx,
+        %{stream_id: stream_id} = state
+      ) do
     case ExLibnice.send_payload(ice, stream_id, component_id, payload) do
       :ok ->
         Membrane.Logger.debug("Sent payload: #{payload_size} bytes")
