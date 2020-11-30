@@ -1,24 +1,6 @@
 defmodule Membrane.ICE.Sink do
   @moduledoc """
   Element that sends buffers (over UDP or TCP) received on different pads to relevant receivers.
-
-  Multiple components are handled with dynamic pads. Other elements can be linked to the Sink
-  using pad with id `component_id`. After successful linking sending data to the Sink on newly
-  added pad will cause conveying this data through the net using component with id `component_id`.
-
-  For example if buffer was received on pad 1 the element will send it through component 1 to the
-  receiver which then will convey this data through its pad 1 to some other element.
-
-  Other elements can be linked to the Sink in any moment but before playing pipeline. Playing your
-  pipeline is possible only after linking all pads. E.g. if your stream has 2 components you have to
-  link to the Sink using two dynamic pads with ids 1 and 2 and after this you can play your pipeline.
-
-
-  ### Sending messages
-
-  Sending messages (over the net) was described in `Architecture and pad semantic` section.
-  Here we only want to notice that Sink can fail to send message. In this case notification
-  `{:error, :failed_to_send}` is fired to pipeline/bin.
   """
 
   use Membrane.Sink

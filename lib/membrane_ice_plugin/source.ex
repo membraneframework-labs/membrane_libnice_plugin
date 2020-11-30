@@ -1,14 +1,6 @@
 defmodule Membrane.ICE.Source do
   @moduledoc """
-  Element that convey buffers to relevant pads.
-
-  Multiple components are handled with dynamic pads. Receiving data on component with id
-  `component_id` will cause in conveying this data on pad with id `component_id`.
-
-  Other elements can be linked to the Sink in any moment but before playing pipeline. Playing your
-  pipeline is possible only after linking all pads. E.g. if your stream has 2 components you have to
-  link to the Source using two dynamic pads with ids 1 and 2 and after this you can play your
-  pipeline.
+  Element that convey buffers received over net (TCP or UDP) to relevant pads.
   """
 
   use Membrane.Source
