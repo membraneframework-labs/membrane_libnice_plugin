@@ -8,7 +8,7 @@ defmodule Membrane.ICE.Handshake.Default do
 
   @impl true
   def init(_opts) do
-    :finished
+    {:finished, nil}
   end
 
   @impl true

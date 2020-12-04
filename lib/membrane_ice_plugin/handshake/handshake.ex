@@ -13,16 +13,25 @@ defmodule Membrane.ICE.Handshake do
   """
   @type state :: term()
 
+  @typedoc """
+  Notification sent to pipeline after execution `init/1` function on handshake module
+  """
+  @type init_notification :: {:handshake_init_data, init_data :: any()}
+
   @doc """
   Called only once at Sink/Source preparation.
 
   `opts` - options specified in `handshake_opts` option in Sink/Source
+  `init_data` - any data that will be fired as a notification to pipeline. Notification
+  will be of type `t:init_notification/0`
   `state` - state that will be passed to other functions
 
   Returning by a peer `:finished` will mark handshake as finished and none of the remaining
   functions will be invoked for this peer.
   """
-  @callback init(opts :: list()) :: {:ok, state()} | :finished
+  @callback init(opts :: list()) ::
+              {:ok, init_data :: any(), state()}
+              | {:finished, init_data :: any()}
 
   @doc """
   Called only once when component changes state to READY i.e. it is able to receive and send data.

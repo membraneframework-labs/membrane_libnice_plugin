@@ -271,20 +271,33 @@ defmodule Membrane.ICE.Connector do
 
     case ExLibnice.add_stream(ice, n_components, stream_name) do
       {:ok, stream_id} ->
+        handshake_init_results =
+          1..n_components
+          |> Map.new(&{&1, handshake_module.init(handshake_opts)})
+
         handshakes =
           1..n_components
-          |> Map.new(&{&1, parse_handshake_init_res(handshake_module.init(handshake_opts))})
+          |> Map.new(fn component_id ->
+            {component_id, parse_handshake_init_res(handshake_init_results[component_id])}
+          end)
+
+        actions =
+          1..n_components
+          |> Enum.map(fn component_id ->
+            {_res, init_data, _state} = handshake_init_results[component_id]
+            {:notify, {:handshake_init_data, init_data}}
+          end)
 
         new_state = %State{state | stream_id: stream_id, handshakes: handshakes}
-        {:ok, new_state}
+        {{:ok, actions}, new_state}
 
       {:error, cause} ->
         {:error, cause}
     end
   end
 
-  defp parse_handshake_init_res({:ok, ctx}), do: {ctx, :in_progress, nil}
-  defp parse_handshake_init_res(:finished), do: {nil, :finished, nil}
+  defp parse_handshake_init_res({:ok, _init_data, state}), do: {state, :in_progress, nil}
+  defp parse_handshake_init_res({:finished, _init_data}), do: {nil, :finished, nil}
 
   @spec parse_result(
           res ::

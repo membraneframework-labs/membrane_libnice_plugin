@@ -135,7 +135,11 @@ defmodule Membrane.ICE.Bin do
         ctx,
         state
       ) do
-    actions = [forward: {:ice_sink, msg}, notify: {:component_ready, component_id, handshake_data}]
+    actions = [
+      forward: {:ice_sink, msg},
+      notify: {:component_ready, component_id, handshake_data}
+    ]
+
     {{:ok, actions}, state}
   end
 
