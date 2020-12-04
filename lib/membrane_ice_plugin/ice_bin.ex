@@ -92,13 +92,13 @@ defmodule Membrane.ICE.Bin do
   end
 
   @impl true
-  def handle_pad_added(Pad.ref(:output, _) = pad, _ctx, state) do
+  def handle_pad_added(Pad.ref(:output, _component_id) = pad, _ctx, state) do
     links = [link(:ice_source) |> via_out(pad) |> to_bin_output(pad)]
     {{:ok, spec: %ParentSpec{links: links}}, state}
   end
 
   @impl true
-  def handle_pad_added(Pad.ref(:input, _) = pad, _ctx, state) do
+  def handle_pad_added(Pad.ref(:input, _component_id) = pad, _ctx, state) do
     links = [link_bin_input(pad) |> via_in(pad) |> to(:ice_sink)]
     {{:ok, spec: %ParentSpec{links: links}}, state}
   end
@@ -135,18 +135,7 @@ defmodule Membrane.ICE.Bin do
         ctx,
         state
       ) do
-    actions =
-      cond do
-        Map.has_key?(ctx.pads, Pad.ref(:input, component_id)) ->
-          [forward: {:ice_sink, msg}, notify: {:component_ready, component_id, handshake_data}]
-
-        Map.has_key?(ctx.pads, Pad.ref(:output, component_id)) ->
-          [notify: {:component_ready, component_id, handshake_data}]
-
-        true ->
-          []
-      end
-
+    actions = [forward: {:ice_sink, msg}, notify: {:component_ready, component_id, handshake_data}]
     {{:ok, actions}, state}
   end
 

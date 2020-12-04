@@ -27,6 +27,15 @@ defmodule Membrane.ICE.Sink do
   end
 
   @impl true
+  def handle_pad_added(Pad.ref(:input, component_id) = pad, _ctx, state) do
+    if component_id in state.ready_components do
+      {{:ok, demand: pad}, state}
+    else
+      {:ok, state}
+    end
+  end
+
+  @impl true
   def handle_write(
         Pad.ref(:input, component_id) = pad,
         %Membrane.Buffer{payload: payload},
@@ -42,10 +51,19 @@ defmodule Membrane.ICE.Sink do
     end
   end
 
-  def handle_other({:component_ready, stream_id, component_id, _handshake_data}, _ctx, state) do
+  def handle_other({:component_ready, stream_id, component_id, _handshake_data}, ctx, state) do
     Membrane.Logger.debug("Got component_id #{component_id}. Sending demands...")
-    actions = [demand: Pad.ref(:input, component_id)]
     # FIXME handle stream_id in a better way
-    {{:ok, actions}, Map.put(state, :stream_id, stream_id)}
+    state = Map.put(state, :stream_id, stream_id)
+    ready_components = state.ready_components
+    ready_components = [component_id] ++ ready_components
+    state = Map.put(state, :ready_components, ready_components)
+
+    if Map.has_key?(ctx.pads, Pad.ref(:input, component_id)) do
+      actions = [demand: Pad.ref(:input, component_id)]
+      {{:ok, actions}, state}
+    else
+      {:ok, state}
+    end
   end
 end
