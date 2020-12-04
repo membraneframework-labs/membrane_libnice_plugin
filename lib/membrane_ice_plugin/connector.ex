@@ -100,10 +100,11 @@ defmodule Membrane.ICE.Connector do
   end
 
   def handle_call(:run, _from, %State{ice: ice} = state) do
-    with {:ok, %State{stream_id: stream_id} = new_state} <- add_stream(state),
+    with {:ok, handshake_init_data, %State{stream_id: stream_id} = new_state} <-
+           add_stream(state),
          {:ok, credentials} <- ExLibnice.get_local_credentials(ice, stream_id),
          :ok <- ExLibnice.gather_candidates(ice, stream_id) do
-      {:reply, {:local_credentials, credentials}, new_state}
+      {:reply, {:ok, handshake_init_data, credentials}, new_state}
     else
       {:error, cause} -> {:stop, {:error, cause}, state}
     end
@@ -246,6 +247,10 @@ defmodule Membrane.ICE.Connector do
       {{finished?, handshake_data}, new_state} =
         parse_result(res, ice, stream_id, component_id, handshakes, handshake_state, state)
 
+      if finished? do
+        send(parent, {:handshake_data, component_id, handshake_data})
+      end
+
       if finished? and MapSet.member?(state.connections, component_id) do
         msg = {:component_ready, stream_id, component_id, handshake_data}
         send(parent, msg)
@@ -281,15 +286,15 @@ defmodule Membrane.ICE.Connector do
             {component_id, parse_handshake_init_res(handshake_init_results[component_id])}
           end)
 
-        actions =
+        handshake_init_data =
           1..n_components
-          |> Enum.map(fn component_id ->
+          |> Map.new(fn component_id ->
             {_res, init_data, _state} = handshake_init_results[component_id]
-            {:notify, {:handshake_init_data, init_data}}
+            {component_id, init_data}
           end)
 
         new_state = %State{state | stream_id: stream_id, handshakes: handshakes}
-        {{:ok, actions}, new_state}
+        {:ok, handshake_init_data, new_state}
 
       {:error, cause} ->
         {:error, cause}

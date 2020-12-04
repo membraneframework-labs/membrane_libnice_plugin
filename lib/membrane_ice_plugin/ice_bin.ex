@@ -46,7 +46,16 @@ defmodule Membrane.ICE.Bin do
     availability: :on_request,
     caps: :any,
     mode: :pull,
-    demand_unit: :buffers
+    demand_unit: :buffers,
+    options: [
+      component_id: [
+        spec: non_neg_integer(),
+        default: 1,
+        description: """
+        Component id to send messages out.
+        """
+      ]
+    ]
 
   def_output_pad :output,
     availability: :on_request,
@@ -98,15 +107,30 @@ defmodule Membrane.ICE.Bin do
   end
 
   @impl true
-  def handle_pad_added(Pad.ref(:input, _component_id) = pad, _ctx, state) do
-    links = [link_bin_input(pad) |> via_in(pad) |> to(:ice_sink)]
+  def handle_pad_added(Pad.ref(:input, _ref) = pad, ctx, state) do
+    %{component_id: component_id} = ctx.pads[pad].options
+
+    links = [
+      link_bin_input(pad)
+      |> via_in(:input, options: [component_id: component_id])
+      |> to(:ice_sink)
+    ]
+
     {{:ok, spec: %ParentSpec{links: links}}, state}
   end
 
   @impl true
   def handle_prepared_to_playing(_ctx, %{connector: connector} = state) do
-    {:local_credentials, credentials} = Connector.run(connector)
-    {{:ok, notify: {:local_credentials, credentials}}, state}
+    {:ok, handshake_init_data, credentials} = Connector.run(connector)
+
+    actions =
+      handshake_init_data
+      |> Enum.map(fn {component_id, init_data} ->
+        {:notify, {:handshake_init_data, component_id, init_data}}
+      end)
+
+    actions = actions ++ [{:notify, {:local_credentials, credentials}}]
+    {{:ok, actions}, state}
   end
 
   @impl true
@@ -132,7 +156,7 @@ defmodule Membrane.ICE.Bin do
   @impl true
   def handle_other(
         {:component_ready, _stream_id, component_id, handshake_data} = msg,
-        ctx,
+        _ctx,
         state
       ) do
     actions = [
@@ -141,6 +165,11 @@ defmodule Membrane.ICE.Bin do
     ]
 
     {{:ok, actions}, state}
+  end
+
+  @impl true
+  def handle_other({:handshake_data, _component_id, _handshake_data} = msg, _ctx, state) do
+    {{:ok, forward: {:ice_source, msg}}, state}
   end
 
   @impl true

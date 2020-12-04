@@ -5,6 +5,8 @@ defmodule Membrane.ICE.Sink do
 
   use Membrane.Sink
 
+  alias Membrane.ICE.Handshake
+
   require Membrane.Logger
 
   def_options ice: [
@@ -17,19 +19,30 @@ defmodule Membrane.ICE.Sink do
     availability: :on_request,
     caps: :any,
     mode: :pull,
-    demand_unit: :buffers
+    demand_unit: :buffers,
+    options: [
+      component_id: [
+        spec: non_neg_integer(),
+        default: 1,
+        description: """
+        Component id to send messages out.
+        """
+      ]
+    ]
 
   @impl true
   def handle_init(options) do
     %__MODULE__{ice: ice} = options
 
-    {:ok, %{:ice => ice}}
+    {:ok, %{:ice => ice, :ready_components => %{}}}
   end
 
   @impl true
-  def handle_pad_added(Pad.ref(:input, component_id) = pad, _ctx, state) do
-    if component_id in state.ready_components do
-      {{:ok, demand: pad}, state}
+  def handle_pad_added(Pad.ref(:input, _ref) = pad, ctx, state) do
+    %{component_id: component_id} = ctx.pads[pad].options
+
+    if component_id in Map.keys(state.ready_components) do
+      {{:ok, get_actions([pad], state.ready_components[component_id])}, state}
     else
       {:ok, state}
     end
@@ -37,11 +50,13 @@ defmodule Membrane.ICE.Sink do
 
   @impl true
   def handle_write(
-        Pad.ref(:input, component_id) = pad,
+        Pad.ref(:input, _ref) = pad,
         %Membrane.Buffer{payload: payload},
-        _ctx,
+        ctx,
         %{ice: ice, stream_id: stream_id} = state
       ) do
+    %{component_id: component_id} = ctx.pads[pad].options
+
     case ExLibnice.send_payload(ice, stream_id, component_id, payload) do
       :ok ->
         {{:ok, demand: pad}, state}
@@ -51,19 +66,24 @@ defmodule Membrane.ICE.Sink do
     end
   end
 
-  def handle_other({:component_ready, stream_id, component_id, _handshake_data}, ctx, state) do
+  def handle_other({:component_ready, stream_id, component_id, handshake_data}, ctx, state) do
     Membrane.Logger.debug("Got component_id #{component_id}. Sending demands...")
     # FIXME handle stream_id in a better way
     state = Map.put(state, :stream_id, stream_id)
-    ready_components = state.ready_components
-    ready_components = [component_id] ++ ready_components
+    ready_components = Map.put(state.ready_components, component_id, handshake_data)
     state = Map.put(state, :ready_components, ready_components)
 
     if Map.has_key?(ctx.pads, Pad.ref(:input, component_id)) do
-      actions = [demand: Pad.ref(:input, component_id)]
-      {{:ok, actions}, state}
+      {{:ok, get_actions(Map.keys(ctx.pads), handshake_data)}, state}
     else
       {:ok, state}
     end
+  end
+
+  defp get_actions(pads, handshake_data) do
+    pads
+    |> Enum.flat_map(fn pad ->
+      [demand: pad, event: {pad, %Handshake.Event{handshake_data: handshake_data}}]
+    end)
   end
 end
