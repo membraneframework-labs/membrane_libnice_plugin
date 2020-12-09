@@ -38,7 +38,7 @@ defmodule Membrane.ICE.Plugin.Mixfile do
     [
       {:membrane_core, "~> 0.6.0"},
       {:unifex, "~> 0.3.2"},
-      {:ex_libnice, path: "/home/michal/Repos/membrane/ex_libnice"},
+      {:ex_libnice, "~> 0.1.1"},
       {:ex_doc, "~> 0.22", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
       {:credo, "~> 1.4", only: :dev, runtime: false},

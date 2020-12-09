@@ -75,8 +75,7 @@ defmodule Membrane.ICE.IntegrationTest do
         Testing.Pipeline.message_child(rx_pid, :ice, msg)
         set_remote_candidates(tx_pid, rx_pid, tx_ready, rx_ready)
 
-      {_rx_mod, ^rx_pid,
-       {:handle_notification, {{:component_ready, _component_id, _handshake_data}, :ice}}} ->
+      {_rx_mod, ^rx_pid, {:handle_notification, {:candidate_gathering_done, :ice}}} ->
         set_remote_candidates(tx_pid, rx_pid, tx_ready, true)
 
       {_rx_mod, ^rx_pid, {:handle_notification, {{:new_candidate_full, rx_cand}, :ice}}} ->
@@ -84,8 +83,7 @@ defmodule Membrane.ICE.IntegrationTest do
         Testing.Pipeline.message_child(tx_pid, :ice, msg)
         set_remote_candidates(tx_pid, rx_pid, tx_ready, rx_ready)
 
-      {_tx_mod, ^tx_pid,
-       {:handle_notification, {{:component_ready, _component_id, _handshake_data}, :ice}}} ->
+      {_tx_mod, ^tx_pid, {:handle_notification, {:candidate_gathering_done, :ice}}} ->
         set_remote_candidates(tx_pid, rx_pid, true, rx_ready)
 
       _other ->

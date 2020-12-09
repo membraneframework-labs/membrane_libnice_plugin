@@ -289,7 +289,7 @@ defmodule Membrane.ICE.Connector do
         handshake_init_data =
           1..n_components
           |> Map.new(fn component_id ->
-            {_res, init_data, _state} = handshake_init_results[component_id]
+            init_data = get_init_data_from_init_result(handshake_init_results[component_id])
             {component_id, init_data}
           end)
 
@@ -303,6 +303,9 @@ defmodule Membrane.ICE.Connector do
 
   defp parse_handshake_init_res({:ok, _init_data, state}), do: {state, :in_progress, nil}
   defp parse_handshake_init_res({:finished, _init_data}), do: {nil, :finished, nil}
+
+  defp get_init_data_from_init_result({:ok, init_data, _state}), do: init_data
+  defp get_init_data_from_init_result({:finished, init_data}), do: init_data
 
   @spec parse_result(
           res ::
