@@ -112,23 +112,14 @@ defmodule Membrane.ICE.Connector do
 
   def handle_call(:generate_local_sdp, _from, %State{ice: ice} = state) do
     {:ok, local_sdp} = ExLibnice.generate_local_sdp(ice)
-
     # the version of the SDP protocol. RFC 4566 defines only v=0 - section 5.1
     local_sdp = "v=0\r\n" <> local_sdp
-
-    Membrane.Logger.debug("local sdp: #{inspect(local_sdp)}")
-
     {:reply, {:local_sdp, local_sdp}, state}
   end
 
   def handle_call({:parse_remote_sdp, sdp}, _from, %State{ice: ice} = state) do
-    case ExLibnice.parse_remote_sdp(ice, sdp) do
-      {:ok, added_cand_num} ->
-        {:reply, {:parse_remote_sdp_ok, added_cand_num}, state}
-
-      {:error, cause} ->
-        {:reply, {:error, cause}, state}
-    end
+    ExLibnice.parse_remote_sdp(ice, sdp)
+    {:reply, :ok, state}
   end
 
   def handle_call(
@@ -136,10 +127,8 @@ defmodule Membrane.ICE.Connector do
         _from,
         %{ice: ice, stream_id: stream_id} = state
       ) do
-    case ExLibnice.set_remote_credentials(ice, credentials, stream_id) do
-      :ok -> {:reply, :ok, state}
-      {:error, cause} -> {:reply, {:error, cause}, state}
-    end
+    ExLibnice.set_remote_credentials(ice, credentials, stream_id)
+    {:reply, :ok, state}
   end
 
   def handle_call(
@@ -147,10 +136,8 @@ defmodule Membrane.ICE.Connector do
         _from,
         %State{ice: ice, stream_id: stream_id} = state
       ) do
-    case ExLibnice.peer_candidate_gathering_done(ice, stream_id) do
-      :ok -> {:reply, :ok, state}
-      {:error, cause} -> {:reply, {:error, cause}, state}
-    end
+    ExLibnice.peer_candidate_gathering_done(ice, stream_id)
+    {:reply, :ok, state}
   end
 
   def handle_call(
@@ -158,36 +145,26 @@ defmodule Membrane.ICE.Connector do
         _from,
         %State{ice: ice, stream_id: stream_id} = state
       ) do
-    case ExLibnice.set_remote_candidate(ice, candidate, stream_id, component_id) do
-      :ok -> {:reply, :ok, state}
-      {:error, cause} -> {:reply, {:error, cause}, state}
-    end
+    ExLibnice.set_remote_candidate(ice, candidate, stream_id, component_id)
+    {:reply, :ok, state}
   end
 
   def handle_info({:new_candidate_full, _cand} = msg, %State{parent: parent} = state) do
-    Membrane.Logger.debug("#{inspect(msg)}")
     send(parent, msg)
     {:noreply, state}
   end
 
   def handle_info({:new_remote_candidate_full, _cand} = msg, %State{parent: parent} = state) do
-    Membrane.Logger.debug("#{inspect(msg)}")
     send(parent, msg)
     {:noreply, state}
   end
 
-  def handle_info({:candidate_gathering_done, _stream_id} = msg, %State{parent: parent} = state) do
-    Membrane.Logger.debug("#{inspect(msg)}")
+  def handle_info({:candidate_gathering_done, _stream_id}, %State{parent: parent} = state) do
     send(parent, :candidate_gathering_done)
     {:noreply, state}
   end
 
-  def handle_info(
-        {:new_selected_pair, _stream_id, component_id, lfoundation, rfoundation} = msg,
-        %State{parent: parent} = state
-      ) do
-    Membrane.Logger.debug("#{inspect(msg)}")
-    send(parent, {:new_selected_pair, component_id, lfoundation, rfoundation})
+  def handle_info({:new_selected_pair, _stream_id, component_id, _lf, _rf}, state) do
     {:noreply, state}
   end
 

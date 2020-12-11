@@ -12,7 +12,7 @@ defmodule Membrane.ICE.Sink do
   def_options ice: [
                 type: :pid,
                 default: nil,
-                description: "Pid of ExLibnice instance"
+                description: "Pid of ExLibnice instance. It's needed to send packets out."
               ]
 
   def_input_pad :input,
@@ -75,10 +75,10 @@ defmodule Membrane.ICE.Sink do
 
     pads =
       ctx.pads
-      |> Enum.filter(fn {k, v} ->
+      |> Enum.filter(fn {_k, v} ->
         v[:options][:component_id] == component_id
       end)
-      |> Enum.map(fn {k, v} -> k end)
+      |> Enum.map(fn {k, _v} -> k end)
 
     if not Enum.empty?(pads) do
       {{:ok, get_actions(pads, handshake_data)}, state}

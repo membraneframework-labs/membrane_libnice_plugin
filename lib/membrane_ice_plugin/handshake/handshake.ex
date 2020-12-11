@@ -14,9 +14,10 @@ defmodule Membrane.ICE.Handshake do
   @type state :: term()
 
   @typedoc """
-  Notification sent to pipeline after execution `init/1` function on handshake module
+  Notification sent to pipeline after executing `init/1` function on handshake module
   """
-  @type init_notification :: {:handshake_init_data, init_data :: any()}
+  @type init_notification ::
+          {:handshake_init_data, component_id :: non_neg_integer(), init_data :: any()}
 
   @doc """
   Called only once at Sink/Source preparation.

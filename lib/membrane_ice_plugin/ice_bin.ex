@@ -1,4 +1,51 @@
 defmodule Membrane.ICE.Bin do
+  @moduledoc """
+  ## Architecture and pad semantic
+  Both input and output pads are dynamic ones but their semantic is different.
+  One instance of ICE Bin is responsible for handling only one ICE stream which can have
+  multiple components.
+
+  ### Linking using output pad
+  To receive messages after establishing ICE connection you have to link ICE Bin to your element
+  via `Pad.ref(:output, component_id)`.  `component_id` is an id of component from which your
+  element will receive messages. E.g. if you passed as `n_components` 2 it means that there will be
+  two components and you can link ICE Bin to your element via `Pad.ref(:output, 1)`
+  and `Pad.ref(:output, 2)`.
+
+  **Important**: you can link to ICE Bin using its output pad in any moment you want but if you don't
+  want to miss any messages do it before playing your pipeline.
+
+  **Important**: you can't link multiple elements using the same `component_id`. Messages from
+  one component can be conveyed only to one element.
+
+  ### Linking using input pad
+  To send messages after establishing ICE connection you have to link to ICE Bin via
+  `Pad.ref(:input, options: [component_id: component_id])`. `component_id` is an id of component
+  which will be used to send messages via net. Unlike output pad you can link multiple elements
+  using the same `component_id`. In this case all these elements will send their messages using the
+  same ICE connection.
+
+  ### Messages API
+  - `{:set_remote_credentials, credentials}` - credentials are string in form of "ufrag passwd"
+
+  - `{:set_remote_candidate, candidate, component_id}` - candidate is a string in form of
+  SDP attribute i.e. it has prefix "a=" e.g. "a=candidate 1 " #TODO
+
+  ### Notifications API
+  - `{:new_candidate_full, candidate}`
+    Triggered by: starting pipeline i.e. `YourPipeline.play(pid)`
+
+  - `:candidate_gathering_done`
+  Triggered by: starting pipeline i.e. `YourPipeline.play(pid)`
+
+  - `{:new_remote_candidate_full, candidate}`
+    Triggered by: `{:set_remote_candidate, candidate, component_id}`
+
+  ### Sending and receiving messages
+  To send or receive messages just link to ICE Bin using relevant pads.
+  As soon as connection is established your element will receive demands from ICE Sink or
+  messages from ICE Source.
+  """
   use Membrane.Bin
 
   alias Membrane.ICE.Connector
@@ -38,8 +85,9 @@ defmodule Membrane.ICE.Bin do
               handshake_opts: [
                 type: :list,
                 default: [],
-                description: "Options for handshake module. They will be passed to start_link
-                function of handshake_module"
+                description:
+                  "Options for handshake module. They will be passed to init function of
+                handshake_module"
               ]
 
   def_input_pad :input,
@@ -155,15 +203,11 @@ defmodule Membrane.ICE.Bin do
 
   @impl true
   def handle_other(
-        {:component_ready, _stream_id, component_id, handshake_data} = msg,
+        {:component_ready, _stream_id, _component_id, _handshake_data} = msg,
         _ctx,
         state
       ) do
-    actions = [
-      forward: {:ice_sink, msg},
-      notify: {:component_ready, component_id, handshake_data}
-    ]
-
+    actions = [forward: {:ice_sink, msg}]
     {{:ok, actions}, state}
   end
 
