@@ -16,7 +16,21 @@ defmodule Membrane.ICE.Source do
 
   @impl true
   def handle_init(_opts) do
-    {:ok, %{}}
+    {:ok, %{handshake_data: nil}}
+  end
+
+  @impl true
+  def handle_pad_added(_pad, _ctx, %{handshake_data: nil} = state) do
+    {:ok, state}
+  end
+
+  @impl true
+  def handle_pad_added(
+        Pad.ref(:output, _component_id) = pad,
+        _ctx,
+        %{handshake_data: handshake_data} = state
+      ) do
+    {{:ok, event: {pad, %Handshake.Event{handshake_data: handshake_data}}}, state}
   end
 
   @impl true
@@ -26,11 +40,16 @@ defmodule Membrane.ICE.Source do
   end
 
   @impl true
-  def handle_other({:handshake_data, component_id, handshake_data}, _ctx, state) do
-    actions = [
-      event: {Pad.ref(:output, component_id), %Handshake.Event{handshake_data: handshake_data}}
-    ]
+  def handle_other({:handshake_data, component_id, handshake_data}, ctx, state) do
+    pad = Pad.ref(:output, component_id)
 
-    {{:ok, actions}, state}
+    actions =
+      if Map.has_key?(ctx.pads, pad) do
+        [event: {pad, %Handshake.Event{handshake_data: handshake_data}}]
+      else
+        []
+      end
+
+    {{:ok, actions}, Map.put(state, :handshake_data, handshake_data)}
   end
 end
