@@ -1,4 +1,9 @@
 defmodule Membrane.ICE.Connector do
+  @moduledoc false
+
+  # This module is responsible for interacting with `libnice` i.e. establishing connection,
+  # sending and receiving messages and conveying them to ICE Bin.
+
   use GenServer
 
   alias Membrane.ICE.Handshake
@@ -40,39 +45,53 @@ defmodule Membrane.ICE.Connector do
               connections: MapSet.new()
   end
 
+  @spec start_link(opts :: keyword()) :: {:ok, pid()}
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts)
   end
 
+  @spec get_ice_pid(connector :: pid()) :: {:ok, ice_pid :: pid()}
   def get_ice_pid(pid) do
     GenServer.call(pid, :get_ice_pid)
   end
 
+  @spec run(connector :: pid()) ::
+          {:ok, handshake_init_data :: Handshake.init_notification(), credentials :: String.t()}
   def run(pid) do
     GenServer.call(pid, :run)
   end
 
+  @spec generate_local_sdp(connector :: pid()) :: {:ok, local_sdp :: String.t()}
   def generate_local_sdp(pid) do
     GenServer.call(pid, :generate_local_sdp)
   end
 
+  @spec parse_remote_sdp(connector :: pid(), sdp :: String.t()) :: :ok
   def parse_remote_sdp(pid, sdp) do
     GenServer.call(pid, {:parse_remote_sdp, sdp})
   end
 
+  @spec set_remote_credentials(connector :: pid(), credentials :: String.t()) :: :ok
   def set_remote_credentials(pid, credentials) do
     GenServer.call(pid, {:set_remote_credentials, credentials})
   end
 
+  @spec peer_candidate_gathering_done(connector :: pid()) :: :ok
   def peer_candidate_gathering_done(pid) do
     GenServer.call(pid, :peer_candidate_gathering_done)
   end
 
+  @spec set_remote_candidate(
+          connector :: pid(),
+          candidate :: String.t(),
+          component_id :: non_neg_integer()
+        ) :: :ok
   def set_remote_candidate(pid, candidate, component_id) do
     GenServer.call(pid, {:set_remote_candidate, candidate, component_id})
   end
 
   # Server API
+  @impl true
   def init(opts) do
     {:ok, ice} =
       ExLibnice.start_link(
@@ -95,10 +114,12 @@ defmodule Membrane.ICE.Connector do
     {:ok, state}
   end
 
+  @impl true
   def handle_call(:get_ice_pid, _from, %State{ice: ice} = state) do
     {:reply, {:ok, ice}, state}
   end
 
+  @impl true
   def handle_call(:run, _from, %State{ice: ice} = state) do
     with {:ok, handshake_init_data, %State{stream_id: stream_id} = new_state} <-
            add_stream(state),
@@ -110,18 +131,21 @@ defmodule Membrane.ICE.Connector do
     end
   end
 
+  @impl true
   def handle_call(:generate_local_sdp, _from, %State{ice: ice} = state) do
     {:ok, local_sdp} = ExLibnice.generate_local_sdp(ice)
     # the version of the SDP protocol. RFC 4566 defines only v=0 - section 5.1
     local_sdp = "v=0\r\n" <> local_sdp
-    {:reply, {:local_sdp, local_sdp}, state}
+    {:reply, {:ok, local_sdp}, state}
   end
 
+  @impl true
   def handle_call({:parse_remote_sdp, sdp}, _from, %State{ice: ice} = state) do
     ExLibnice.parse_remote_sdp(ice, sdp)
     {:reply, :ok, state}
   end
 
+  @impl true
   def handle_call(
         {:set_remote_credentials, credentials},
         _from,
@@ -131,6 +155,7 @@ defmodule Membrane.ICE.Connector do
     {:reply, :ok, state}
   end
 
+  @impl true
   def handle_call(
         :peer_candidate_gathering_done,
         _from,
@@ -140,6 +165,7 @@ defmodule Membrane.ICE.Connector do
     {:reply, :ok, state}
   end
 
+  @impl true
   def handle_call(
         {:set_remote_candidate, candidate, component_id},
         _from,
@@ -149,30 +175,36 @@ defmodule Membrane.ICE.Connector do
     {:reply, :ok, state}
   end
 
+  @impl true
   def handle_info({:new_candidate_full, _cand} = msg, %State{parent: parent} = state) do
     send(parent, msg)
     {:noreply, state}
   end
 
+  @impl true
   def handle_info({:new_remote_candidate_full, _cand} = msg, %State{parent: parent} = state) do
     send(parent, msg)
     {:noreply, state}
   end
 
+  @impl true
   def handle_info({:candidate_gathering_done, _stream_id}, %State{parent: parent} = state) do
     send(parent, :candidate_gathering_done)
     {:noreply, state}
   end
 
-  def handle_info({:new_selected_pair, _stream_id, component_id, _lf, _rf}, state) do
+  @impl true
+  def handle_info({:new_selected_pair, _stream_id, _component_id, _lf, _rf}, state) do
     {:noreply, state}
   end
 
+  @impl true
   def handle_info({:component_state_failed, _stream_id, component_id}, state) do
     Membrane.Logger.warn("Component #{component_id} state FAILED")
     {:noreply, state}
   end
 
+  @impl true
   def handle_info({:component_state_ready, stream_id, component_id}, state) do
     Membrane.Logger.debug("Component #{component_id} READY")
 
@@ -208,6 +240,7 @@ defmodule Membrane.ICE.Connector do
     end
   end
 
+  @impl true
   def handle_info({:ice_payload, stream_id, component_id, payload}, state) do
     %State{
       parent: parent,

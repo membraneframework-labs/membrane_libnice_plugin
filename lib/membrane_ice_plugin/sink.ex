@@ -66,9 +66,8 @@ defmodule Membrane.ICE.Sink do
     end
   end
 
+  @impl true
   def handle_other({:component_ready, stream_id, component_id, handshake_data}, ctx, state) do
-    Membrane.Logger.debug("Got component_id #{component_id}.")
-    # FIXME handle stream_id in a better way
     state = Map.put(state, :stream_id, stream_id)
     ready_components = Map.put(state.ready_components, component_id, handshake_data)
     state = Map.put(state, :ready_components, ready_components)
@@ -80,10 +79,10 @@ defmodule Membrane.ICE.Sink do
       end)
       |> Enum.map(fn {k, _v} -> k end)
 
-    if not Enum.empty?(pads) do
-      {{:ok, get_actions(pads, handshake_data)}, state}
-    else
+    if Enum.empty?(pads) do
       {:ok, state}
+    else
+      {{:ok, get_actions(pads, handshake_data)}, state}
     end
   end
 
