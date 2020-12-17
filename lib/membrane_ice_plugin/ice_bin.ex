@@ -26,10 +26,16 @@ defmodule Membrane.ICE.Bin do
   same ICE connection.
 
   ### Messages API
+  You can send following messages to ICE Bin:
+
   - `{:set_remote_credentials, credentials}` - credentials are string in form of "ufrag passwd"
 
   - `{:set_remote_candidate, candidate, component_id}` - candidate is a string in form of
   SDP attribute i.e. it has prefix "a=" e.g. "a=candidate 1 " #TODO
+
+  - `{:parse_remote_sdp, sdp}`
+
+  - `:peer_candidate_gathering_done`
 
   ### Notifications API
   - `{:new_candidate_full, candidate}`
@@ -39,7 +45,7 @@ defmodule Membrane.ICE.Bin do
   Triggered by: starting pipeline i.e. `YourPipeline.play(pid)`
 
   - `{:new_remote_candidate_full, candidate}`
-    Triggered by: `{:set_remote_candidate, candidate, component_id}`
+    Triggered by: `{:set_remote_candidate, candidate, component_id}` or `{:parse_remote_sdp, sdp}`
 
   ### Sending and receiving messages
   To send or receive messages just link to ICE Bin using relevant pads.
@@ -192,12 +198,24 @@ defmodule Membrane.ICE.Bin do
   end
 
   @impl true
+  def handle_other({:parse_remote_sdp, sdp}, _ctx, %{connector: connector} = state) do
+    Connector.parse_remote_sdp(connector, sdp)
+    {:ok, state}
+  end
+
+  @impl true
   def handle_other(
         {:set_remote_candidate, cand, component_id},
         _ctx,
         %{connector: connector} = state
       ) do
     Connector.set_remote_candidate(connector, cand, component_id)
+    {:ok, state}
+  end
+
+  @impl true
+  def handle_other(:peer_candidate_gathering_done, _ctx, %{connector: connector} = state) do
+    Connector.peer_candidate_gathering_done(connector)
     {:ok, state}
   end
 
