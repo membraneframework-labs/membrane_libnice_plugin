@@ -1,6 +1,6 @@
 defmodule Membrane.ICE.Handshake.Event do
   @moduledoc """
-  Event sent by ICE Source on its output pad after successful handshake.
+  Event sent by ICE Sink and Source on their pads after successful handshake.
   """
 
   @type t :: %__MODULE__{

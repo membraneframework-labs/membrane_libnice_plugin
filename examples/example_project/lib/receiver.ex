@@ -9,7 +9,7 @@ defmodule Example.Receiver do
   @impl true
   def handle_init(_) do
     children = %{
-      source: %Membrane.ICE.Source{
+      ice: %Membrane.ICE.Bin{
         stun_servers: ["64.233.161.127:19302"],
         controlling_mode: false,
         handshake_module: Membrane.ICE.Handshake.Default,
@@ -20,7 +20,7 @@ defmodule Example.Receiver do
     }
 
     pad = Pad.ref(:output, 1)
-    links = [link(:source) |> via_out(pad) |> to(:sink)]
+    links = [link(:ice) |> via_out(pad) |> to(:sink)]
 
     spec = %ParentSpec{
       children: children,
@@ -37,16 +37,16 @@ defmodule Example.Receiver do
 
   @impl true
   def handle_other({:set_remote_credentials, remote_credentials}, _ctx, state) do
-    {{:ok, forward: {:source, {:set_remote_credentials, remote_credentials}}}, state}
+    {{:ok, forward: {:ice, {:set_remote_credentials, remote_credentials}}}, state}
   end
 
   @impl true
   def handle_other({:set_remote_candidate, candidate}, _ctx, state) do
-    {{:ok, forward: {:source, {:set_remote_candidate, candidate, 1}}}, state}
+    {{:ok, forward: {:ice, {:set_remote_candidate, candidate, 1}}}, state}
   end
 
   @impl true
   def handle_other(other, _ctx, state) do
-    {{:ok, forward: {:source, other}}, state}
+    {{:ok, forward: {:ice, other}}, state}
   end
 end

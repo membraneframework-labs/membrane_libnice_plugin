@@ -61,27 +61,30 @@ iex(...)> send(pid, {:set_remote_candidate, "a=candidate:1 1 UDP 2015363327 <som
 ```
 This will start connection establishment attempts.
 
-After setting remote candidates both for the sender and receiver you should see logs similar to
+As soon as connection is established sender side will download and send an example video file which
+then will be received and saved under `/tmp/ice-recv.h264` by the other peer.
+
+**Note**: after establishing ice connection on all input and output ICE Bin pads we send `HandshakeEvent`.
+This event carries data returned by handshake module at the end of handshake and can be handled like
+any other event in Membrane using `handle_event` callback in your elements linked to ICE Bin.
+In this example we use the `Default` handshake module which means no handshake is performed after
+establishing ICE connection.
+
+Example implementation of `handle_event` callback can look like this:
 
 ```elixir
-12:13:17.143 [info]  [pipeline@<0.551.0>] {:new_selected_pair, 1, "4", "7"}
-
-12:13:17.143 [info]  [pipeline@<0.551.0>] {:component_state_ready, 1, nil}
+@impl true
+def handle_event(_pad, %{handshake_data: handshake_data}, _ctx, state) do
+  IO.inspect(handshake_data)
+  {:ok, state}
+end
 ```
 
-both on the sender and receiver side.
-
-`nil` in `{:component_state_ready, 1, nil}` is returned as `handshake_data`. In this example we use
-the `Default` handshake module which means no handshake is performed after establishing ICE
-connection. You can use for e.g. [Membrane DTLS plugin](https://github.com/membraneframework/membrane_dtls_plugin.git)
+You can use for e.g. [Membrane DTLS plugin](https://github.com/membraneframework/membrane_dtls_plugin.git)
 to perform DTLS or DTLS-SRTP handshake after establishing ICE connection and then you will get some
-binary data that will represent `keying material` instead of `nil`. You can also implement your own
+binary data that will represent `keying material`. You can also implement your own
 handshake modules by implementing `Membrane.ICE.Handshake` behaviour, but we will not cover this
 in the example.
-
-At this moment we know that our peers are in the READY state. The sender will instantly send an
-example video file to the receiver which will then save to `/tmp` directory under `ice-recv.h264`
-file.
 
 You can test received video with:
 ```bash
