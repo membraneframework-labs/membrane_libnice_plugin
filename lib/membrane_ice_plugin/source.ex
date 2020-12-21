@@ -34,22 +34,25 @@ defmodule Membrane.ICE.Source do
   end
 
   @impl true
-  def handle_other({:ice_payload, component_id, payload}, _ctx, state) do
-    actions = [buffer: {Pad.ref(:output, component_id), %Membrane.Buffer{payload: payload}}]
-    {{:ok, actions}, state}
+  def handle_other({:ice_payload, component_id, payload}, ctx, state) do
+    pad = Pad.ref(:output, component_id)
+
+    if Map.has_key?(ctx.pads, pad) do
+      {{:ok, [buffer: {pad, %Membrane.Buffer{payload: payload}}]}, state}
+    else
+      {:ok, state}
+    end
   end
 
   @impl true
   def handle_other({:handshake_data, component_id, handshake_data}, ctx, state) do
     pad = Pad.ref(:output, component_id)
+    state = Map.put(state, :handshake_data, handshake_data)
 
-    actions =
-      if Map.has_key?(ctx.pads, pad) do
-        [event: {pad, %Handshake.Event{handshake_data: handshake_data}}]
-      else
-        []
-      end
-
-    {{:ok, actions}, Map.put(state, :handshake_data, handshake_data)}
+    if Map.has_key?(ctx.pads, pad) do
+      {{:ok, [event: {pad, %Handshake.Event{handshake_data: handshake_data}}]}, state}
+    else
+      {:ok, state}
+    end
   end
 end

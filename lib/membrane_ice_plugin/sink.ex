@@ -42,7 +42,7 @@ defmodule Membrane.ICE.Sink do
     %{component_id: component_id} = ctx.pads[pad].options
 
     if component_id in Map.keys(state.ready_components) do
-      {{:ok, get_actions([pad], state.ready_components[component_id])}, state}
+      {{:ok, get_initial_actions([pad], state.ready_components[component_id])}, state}
     else
       {:ok, state}
     end
@@ -82,11 +82,11 @@ defmodule Membrane.ICE.Sink do
     if Enum.empty?(pads) do
       {:ok, state}
     else
-      {{:ok, get_actions(pads, handshake_data)}, state}
+      {{:ok, get_initial_actions(pads, handshake_data)}, state}
     end
   end
 
-  defp get_actions(pads, handshake_data) do
+  defp get_initial_actions(pads, handshake_data) do
     pads
     |> Enum.flat_map(fn pad ->
       [demand: pad, event: {pad, %Handshake.Event{handshake_data: handshake_data}}]
