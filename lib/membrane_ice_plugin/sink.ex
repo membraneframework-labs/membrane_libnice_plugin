@@ -19,16 +19,7 @@ defmodule Membrane.ICE.Sink do
     availability: :on_request,
     caps: :any,
     mode: :pull,
-    demand_unit: :buffers,
-    options: [
-      component_id: [
-        spec: non_neg_integer(),
-        default: 1,
-        description: """
-        Component id to send messages out.
-        """
-      ]
-    ]
+    demand_unit: :buffers
 
   @impl true
   def handle_init(options) do
@@ -38,11 +29,9 @@ defmodule Membrane.ICE.Sink do
   end
 
   @impl true
-  def handle_pad_added(Pad.ref(:input, _ref) = pad, ctx, state) do
-    %{component_id: component_id} = ctx.pads[pad].options
-
+  def handle_pad_added(Pad.ref(:input, component_id) = pad, _ctx, state) do
     if component_id in Map.keys(state.ready_components) do
-      {{:ok, get_initial_actions([pad], state.ready_components[component_id])}, state}
+      {{:ok, get_initial_actions(pad, state.ready_components[component_id])}, state}
     else
       {:ok, state}
     end
@@ -50,13 +39,11 @@ defmodule Membrane.ICE.Sink do
 
   @impl true
   def handle_write(
-        Pad.ref(:input, _ref) = pad,
+        Pad.ref(:input, component_id) = pad,
         %Membrane.Buffer{payload: payload},
-        ctx,
+        _ctx,
         %{ice: ice, stream_id: stream_id} = state
       ) do
-    %{component_id: component_id} = ctx.pads[pad].options
-
     case ExLibnice.send_payload(ice, stream_id, component_id, payload) do
       :ok ->
         {{:ok, demand: pad}, state}
@@ -72,24 +59,16 @@ defmodule Membrane.ICE.Sink do
     ready_components = Map.put(state.ready_components, component_id, handshake_data)
     state = Map.put(state, :ready_components, ready_components)
 
-    pads =
-      ctx.pads
-      |> Enum.filter(fn {_k, v} ->
-        v[:options][:component_id] == component_id
-      end)
-      |> Enum.map(fn {k, _v} -> k end)
+    pad = Pad.ref(:input, component_id)
 
-    if Enum.empty?(pads) do
-      {:ok, state}
+    if Map.has_key?(ctx.pads, pad) do
+      {{:ok, get_initial_actions(pad, handshake_data)}, state}
     else
-      {{:ok, get_initial_actions(pads, handshake_data)}, state}
+      {:ok, state}
     end
   end
 
-  defp get_initial_actions(pads, handshake_data) do
-    pads
-    |> Enum.flat_map(fn pad ->
-      [demand: pad, event: {pad, %Handshake.Event{handshake_data: handshake_data}}]
-    end)
+  defp get_initial_actions(pad, handshake_data) do
+    [demand: pad, event: {pad, %Handshake.Event{handshake_data: handshake_data}}]
   end
 end

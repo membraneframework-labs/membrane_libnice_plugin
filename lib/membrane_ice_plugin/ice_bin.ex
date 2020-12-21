@@ -1,9 +1,10 @@
 defmodule Membrane.ICE.Bin do
   @moduledoc """
   ## Architecture and pad semantic
-  Both input and output pads are dynamic ones but their semantic is different.
+  Both input and output pads are dynamic ones.
   One instance of ICE Bin is responsible for handling only one ICE stream which can have
   multiple components.
+  Each pad is responsible for carrying data from/to one component.
 
   ### Linking using output pad
   To receive messages after establishing ICE connection you have to link ICE Bin to your element
@@ -20,10 +21,9 @@ defmodule Membrane.ICE.Bin do
 
   ### Linking using input pad
   To send messages after establishing ICE connection you have to link to ICE Bin via
-  `Pad.ref(:input, options: [component_id: component_id])`. `component_id` is an id of component
-  which will be used to send messages via net. Unlike output pad you can link multiple elements
-  using the same `component_id`. In this case all these elements will send their messages using the
-  same ICE connection.
+  `Pad.ref(:input, component_id)`. `component_id` is an id of component which will be used to send
+  messages via net. To send data from multiple elements via the same `component_id` you have to
+  use [membrane_funnel_plugin](https://github.com/membraneframework/membrane_funnel_plugin).
 
   ### Messages API
   You can send following messages to ICE Bin:
@@ -100,16 +100,7 @@ defmodule Membrane.ICE.Bin do
     availability: :on_request,
     caps: :any,
     mode: :pull,
-    demand_unit: :buffers,
-    options: [
-      component_id: [
-        spec: non_neg_integer(),
-        default: 1,
-        description: """
-        Component id to send messages out.
-        """
-      ]
-    ]
+    demand_unit: :buffers
 
   def_output_pad :output,
     availability: :on_request,
@@ -161,15 +152,8 @@ defmodule Membrane.ICE.Bin do
   end
 
   @impl true
-  def handle_pad_added(Pad.ref(:input, _ref) = pad, ctx, state) do
-    %{component_id: component_id} = ctx.pads[pad].options
-
-    links = [
-      link_bin_input(pad)
-      |> via_in(:input, options: [component_id: component_id])
-      |> to(:ice_sink)
-    ]
-
+  def handle_pad_added(Pad.ref(:input, _component_id) = pad, _ctx, state) do
+    links = [link_bin_input(pad) |> via_in(pad) |> to(:ice_sink)]
     {{:ok, spec: %ParentSpec{links: links}}, state}
   end
 

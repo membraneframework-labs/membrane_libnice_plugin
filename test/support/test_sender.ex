@@ -21,11 +21,14 @@ defmodule Membrane.ICE.Support.TestSender do
       }
     }
 
-    links = [
-      link(:source) |> via_out(:output) |> via_in(:input, options: [component_id: 1]) |> to(:ice)
-    ]
+    pad = Pad.ref(:input, 1)
+    links = [link(:source) |> via_out(:output) |> via_in(pad) |> to(:ice)]
 
-    spec = %ParentSpec{children: children, links: links}
+    spec = %ParentSpec{
+      children: children,
+      links: links
+    }
+
     {{:ok, spec: spec}, %{}}
   end
 end
