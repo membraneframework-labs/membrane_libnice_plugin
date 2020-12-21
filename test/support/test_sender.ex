@@ -10,7 +10,7 @@ defmodule Membrane.ICE.Support.TestSender do
   @impl true
   def handle_init(opts) do
     children = %{
-      sink: %Membrane.ICE.Sink{
+      ice: %Membrane.ICE.Bin{
         stun_servers: ["64.233.161.127:19302"],
         controlling_mode: true,
         handshake_module: opts[:handshake_module],
@@ -22,13 +22,13 @@ defmodule Membrane.ICE.Support.TestSender do
     }
 
     pad = Pad.ref(:input, 1)
-    links = [link(:source) |> via_in(pad) |> to(:sink)]
-    spec = %ParentSpec{children: children, links: links}
-    {{:ok, spec: spec}, %{}}
-  end
+    links = [link(:source) |> via_out(:output) |> via_in(pad) |> to(:ice)]
 
-  @impl true
-  def handle_notification(_other, _from, _ctx, state) do
-    {:ok, state}
+    spec = %ParentSpec{
+      children: children,
+      links: links
+    }
+
+    {{:ok, spec: spec}, %{}}
   end
 end

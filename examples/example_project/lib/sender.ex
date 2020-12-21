@@ -9,11 +9,11 @@ defmodule Example.Sender do
   @impl true
   def handle_init(_) do
     children = %{
-      sink: %Membrane.ICE.Sink{
+      ice: %Membrane.ICE.Bin{
         stream_name: "video",
         stun_servers: ["64.233.161.127:19302"],
         controlling_mode: true,
-        handshake_module: Membrane.ICE.Handshake.Default,
+        handshake_module: Membrane.ICE.Handshake.Default
       },
       source: %Hackney.Source{
         location: "https://membraneframework.github.io/static/video-samples/test-video.h264"
@@ -21,8 +21,12 @@ defmodule Example.Sender do
     }
 
     pad = Pad.ref(:input, 1)
-    links = [link(:source) |> via_in(pad) |> to(:sink)]
-    spec = %ParentSpec{children: children, links: links}
+    links = [link(:source) |> via_out(:output) |> via_in(pad) |> to(:ice)]
+
+    spec = %ParentSpec{
+      children: children,
+      links: links
+    }
 
     {{:ok, spec: spec}, %{}}
   end
@@ -34,16 +38,16 @@ defmodule Example.Sender do
 
   @impl true
   def handle_other({:set_remote_credentials, remote_credentials}, _ctx, state) do
-    {{:ok, forward: {:sink, {:set_remote_credentials, remote_credentials}}}, state}
+    {{:ok, forward: {:ice, {:set_remote_credentials, remote_credentials}}}, state}
   end
 
   @impl true
   def handle_other({:set_remote_candidate, candidate}, _ctx, state) do
-    {{:ok, forward: {:sink, {:set_remote_candidate, candidate, 1}}}, state}
+    {{:ok, forward: {:ice, {:set_remote_candidate, candidate, 1}}}, state}
   end
 
   @impl true
   def handle_other(other, _ctx, state) do
-    {{:ok, forward: {:sink, other}}, state}
+    {{:ok, forward: {:ice, other}}, state}
   end
 end

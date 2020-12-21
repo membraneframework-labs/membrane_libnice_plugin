@@ -35,17 +35,15 @@ defmodule Membrane.ICE.IntegrationTest do
     :ok = Testing.Pipeline.play(tx_pid)
 
     # set credentials
-    assert_pipeline_notified(rx_pid, :source, {:local_credentials, rx_credentials})
+    assert_pipeline_notified(rx_pid, :ice, {:local_credentials, rx_credentials})
     cred_msg = {:set_remote_credentials, rx_credentials}
-    Testing.Pipeline.message_child(tx_pid, :sink, cred_msg)
+    Testing.Pipeline.message_child(tx_pid, :ice, cred_msg)
 
-    assert_pipeline_notified(tx_pid, :sink, {:local_credentials, tx_credentials})
+    assert_pipeline_notified(tx_pid, :ice, {:local_credentials, tx_credentials})
     cred_msg = {:set_remote_credentials, tx_credentials}
-    Testing.Pipeline.message_child(rx_pid, :source, cred_msg)
+    Testing.Pipeline.message_child(rx_pid, :ice, cred_msg)
 
     # start connectivity checks
-    Testing.Pipeline.message_child(tx_pid, :sink, :gather_candidates)
-    Testing.Pipeline.message_child(rx_pid, :source, :gather_candidates)
     set_remote_candidates(tx_pid, rx_pid)
 
     :timer.sleep(1000)
@@ -72,22 +70,20 @@ defmodule Membrane.ICE.IntegrationTest do
     component_id = 1
 
     receive do
-      {_tx_mod, ^tx_pid, {:handle_notification, {{:new_candidate_full, tx_cand}, :sink}}} ->
+      {_tx_mod, ^tx_pid, {:handle_notification, {{:new_candidate_full, tx_cand}, :ice}}} ->
         msg = {:set_remote_candidate, tx_cand, component_id}
-        Testing.Pipeline.message_child(rx_pid, :source, msg)
+        Testing.Pipeline.message_child(rx_pid, :ice, msg)
         set_remote_candidates(tx_pid, rx_pid, tx_ready, rx_ready)
 
-      {_rx_mod, ^rx_pid,
-       {:handle_notification, {{:component_state_ready, _component_id, _handshake_data}, :source}}} ->
+      {_rx_mod, ^rx_pid, {:handle_notification, {:candidate_gathering_done, :ice}}} ->
         set_remote_candidates(tx_pid, rx_pid, tx_ready, true)
 
-      {_rx_mod, ^rx_pid, {:handle_notification, {{:new_candidate_full, rx_cand}, :source}}} ->
+      {_rx_mod, ^rx_pid, {:handle_notification, {{:new_candidate_full, rx_cand}, :ice}}} ->
         msg = {:set_remote_candidate, rx_cand, component_id}
-        Testing.Pipeline.message_child(tx_pid, :sink, msg)
+        Testing.Pipeline.message_child(tx_pid, :ice, msg)
         set_remote_candidates(tx_pid, rx_pid, tx_ready, rx_ready)
 
-      {_tx_mod, ^tx_pid,
-       {:handle_notification, {{:component_state_ready, _component_id, _handshake_data}, :sink}}} ->
+      {_tx_mod, ^tx_pid, {:handle_notification, {:candidate_gathering_done, :ice}}} ->
         set_remote_candidates(tx_pid, rx_pid, true, rx_ready)
 
       _other ->

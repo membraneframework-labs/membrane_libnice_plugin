@@ -4,9 +4,11 @@
 [![API Docs](https://img.shields.io/badge/api-docs-yellow.svg?style=flat)](https://hexdocs.pm/membrane_ice_plugin/)
 [![CircleCI](https://circleci.com/gh/membraneframework/membrane_ice_plugin.svg?style=svg)](https://circleci.com/gh/membraneframework/membrane_ice_plugin)
 
-This package uses [ex_libnice] to provide GStreamer-style ICE source & sink elements.
+Membrane plugin for ICE protocol.
 
-It is part of [Membrane Multimedia Framework](https://membraneframework.org).
+It enables establishing connection, sending and receiving messages using ICE protocol.
+
+This package uses [ex_libnice] and is part of [Membrane Multimedia Framework](https://membraneframework.org).
 
 ## Installation
 
@@ -15,7 +17,7 @@ The package can be installed by adding `membrane_ice_plugin` to your list of dep
 ```elixir
 def deps do
   [
-    {:membrane_ice_plugin, "~> 0.1.0"}
+    {:membrane_ice_plugin, "~> 0.2.0"}
   ]
 end
 ```
