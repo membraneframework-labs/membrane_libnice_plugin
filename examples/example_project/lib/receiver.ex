@@ -12,7 +12,7 @@ defmodule Example.Receiver do
       ice: %Membrane.ICE.Bin{
         stun_servers: ["64.233.161.127:19302"],
         controlling_mode: false,
-        handshake_module: Membrane.ICE.Handshake.Default,
+        handshake_module: Membrane.ICE.Handshake.Default
       },
       sink: %File.Sink{
         location: "/tmp/ice-recv.h264"

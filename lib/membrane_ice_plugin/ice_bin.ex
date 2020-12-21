@@ -1,6 +1,8 @@
 defmodule Membrane.ICE.Bin do
   @moduledoc """
-  ## Architecture and pad semantic
+  Bin used for establishing ICE connection, sending and receiving messages.
+
+  ### Architecture and pad semantic
   Both input and output pads are dynamic ones.
   One instance of ICE Bin is responsible for handling only one ICE stream which can have
   multiple components.

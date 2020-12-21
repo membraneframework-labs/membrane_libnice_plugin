@@ -1,6 +1,6 @@
 defmodule Membrane.ICE.Handshake.Default do
   @moduledoc """
-  Module by default used in Sink/Source for performing handshake. It does nothing so no handshake
+  Module by default used after establishing ICE connection. It does nothing so no handshake
   is in fact performed.
   """
 
