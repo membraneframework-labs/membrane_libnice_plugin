@@ -43,7 +43,7 @@ defmodule Membrane.ICE.Source do
   @impl true
   def handle_other({:handshake_data, component_id, handshake_data}, ctx, state) do
     pad = Pad.ref(:output, component_id)
-    state = Bunch.Struct.put_in(state, [:components_handshake_data, component_id], handshake_data)
+    state = put_in(state, [:components_handshake_data, component_id], handshake_data)
 
     if Map.has_key?(ctx.pads, pad) do
       {{:ok, [event: {pad, %Handshake.Event{handshake_data: handshake_data}}]}, state}

@@ -225,6 +225,7 @@ defmodule Membrane.ICE.Bin do
     if Map.has_key?(ctx.pads, Pad.ref(:output, component_id)) do
       {{:ok, forward: {:ice_source, msg}}, state}
     else
+      Membrane.Logger.warn("No links for component: #{component_id}. Ignoring incoming message.")
       {:ok, state}
     end
   end

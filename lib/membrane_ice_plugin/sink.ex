@@ -56,7 +56,7 @@ defmodule Membrane.ICE.Sink do
   @impl true
   def handle_other({:component_ready, stream_id, component_id, handshake_data}, ctx, state) do
     state = Map.put(state, :stream_id, stream_id)
-    state = Bunch.Struct.put_in(state, [:ready_components, component_id], handshake_data)
+    state = put_in(state, [:ready_components, component_id], handshake_data)
 
     pad = Pad.ref(:input, component_id)
 
