@@ -16,21 +16,17 @@ defmodule Membrane.ICE.Source do
 
   @impl true
   def handle_init(_opts) do
-    {:ok, %{handshake_data: nil}}
+    {:ok, %{components_handshake_data: %{}}}
   end
 
   @impl true
-  def handle_pad_added(_pad, _ctx, %{handshake_data: nil} = state) do
-    {:ok, state}
-  end
-
-  @impl true
-  def handle_pad_added(
-        Pad.ref(:output, _component_id) = pad,
-        _ctx,
-        %{handshake_data: handshake_data} = state
-      ) do
-    {{:ok, event: {pad, %Handshake.Event{handshake_data: handshake_data}}}, state}
+  def handle_pad_added(Pad.ref(:output, component_id) = pad, _ctx, state) do
+    if Map.has_key?(state.components_handshake_data, component_id) do
+      event = %Handshake.Event{handshake_data: state.components_handshake_data[component_id]}
+      {{:ok, event: {pad, event}}, state}
+    else
+      {:ok, state}
+    end
   end
 
   @impl true
@@ -47,7 +43,7 @@ defmodule Membrane.ICE.Source do
   @impl true
   def handle_other({:handshake_data, component_id, handshake_data}, ctx, state) do
     pad = Pad.ref(:output, component_id)
-    state = Map.put(state, :handshake_data, handshake_data)
+    state = Bunch.Struct.put_in(state, [:components_handshake_data, component_id], handshake_data)
 
     if Map.has_key?(ctx.pads, pad) do
       {{:ok, [event: {pad, %Handshake.Event{handshake_data: handshake_data}}]}, state}

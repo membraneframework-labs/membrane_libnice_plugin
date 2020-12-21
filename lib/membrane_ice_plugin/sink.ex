@@ -30,7 +30,7 @@ defmodule Membrane.ICE.Sink do
 
   @impl true
   def handle_pad_added(Pad.ref(:input, component_id) = pad, _ctx, state) do
-    if component_id in Map.keys(state.ready_components) do
+    if Map.has_key?(state.ready_components, component_id) do
       {{:ok, get_initial_actions(pad, state.ready_components[component_id])}, state}
     else
       {:ok, state}
@@ -56,8 +56,7 @@ defmodule Membrane.ICE.Sink do
   @impl true
   def handle_other({:component_ready, stream_id, component_id, handshake_data}, ctx, state) do
     state = Map.put(state, :stream_id, stream_id)
-    ready_components = Map.put(state.ready_components, component_id, handshake_data)
-    state = Map.put(state, :ready_components, ready_components)
+    state = Bunch.Struct.put_in(state, [:ready_components, component_id], handshake_data)
 
     pad = Pad.ref(:input, component_id)
 
