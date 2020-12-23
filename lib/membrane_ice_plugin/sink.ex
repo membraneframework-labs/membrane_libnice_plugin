@@ -54,7 +54,7 @@ defmodule Membrane.ICE.Sink do
   end
 
   @impl true
-  def handle_write(_pad, buffer, %{playback_state: playback_state}, state) do
+  def handle_write(_pad, _buffer, %{playback_state: playback_state}, state) do
     Membrane.Logger.debug("Can't send message in playback state: #{playback_state}. Ignoring.")
     {:ok, state}
   end
