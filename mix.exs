@@ -1,7 +1,7 @@
 defmodule Membrane.ICE.Plugin.Mixfile do
   use Mix.Project
 
-  @version "0.2.0"
+  @version "0.2.1"
   @github_url "https://github.com/membraneframework/membrane_ice_plugin"
 
   def project do
@@ -38,7 +38,7 @@ defmodule Membrane.ICE.Plugin.Mixfile do
     [
       {:membrane_core, "~> 0.6.0"},
       {:unifex, "~> 0.3.2"},
-      {:ex_libnice, "~> 0.1.1"},
+      {:ex_libnice, "~> 0.1.2"},
       {:ex_doc, "~> 0.23", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
       {:credo, "~> 1.5", only: :dev, runtime: false},

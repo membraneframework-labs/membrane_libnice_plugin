@@ -30,7 +30,11 @@ defmodule Membrane.ICE.Source do
   end
 
   @impl true
-  def handle_other({:ice_payload, component_id, payload}, ctx, state) do
+  def handle_other(
+        {:ice_payload, component_id, payload},
+        %{playback_state: :playing} = ctx,
+        state
+      ) do
     pad = Pad.ref(:output, component_id)
 
     if Map.has_key?(ctx.pads, pad) do
@@ -38,6 +42,16 @@ defmodule Membrane.ICE.Source do
     else
       {:ok, state}
     end
+  end
+
+  @impl true
+  def handle_other(
+        {:ice_payload, _component_id, _payload},
+        %{playback_state: playback_state},
+        state
+      ) do
+    Membrane.Logger.debug("Received message in playback state: #{playback_state}. Ignoring.")
+    {:ok, state}
   end
 
   @impl true

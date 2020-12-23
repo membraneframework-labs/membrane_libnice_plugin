@@ -90,6 +90,11 @@ defmodule Membrane.ICE.Connector do
     GenServer.call(pid, {:set_remote_candidate, candidate, component_id})
   end
 
+  @spec stop(connector :: pid()) :: :ok
+  def stop(pid) do
+    GenServer.call(pid, :stop)
+  end
+
   # Server API
   @impl true
   def init(opts) do
@@ -172,6 +177,12 @@ defmodule Membrane.ICE.Connector do
         %State{ice: ice, stream_id: stream_id} = state
       ) do
     ExLibnice.set_remote_candidate(ice, candidate, stream_id, component_id)
+    {:reply, :ok, state}
+  end
+
+  @impl true
+  def handle_call(:stop, _from, %State{ice: ice, stream_id: stream_id} = state) do
+    ExLibnice.remove_stream(ice, stream_id)
     {:reply, :ok, state}
   end
 

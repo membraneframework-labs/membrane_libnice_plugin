@@ -174,6 +174,12 @@ defmodule Membrane.ICE.Bin do
   end
 
   @impl true
+  def handle_prepared_to_stopped(_ctx, %{connector: connector} = state) do
+    Connector.stop(connector)
+    {:ok, state}
+  end
+
+  @impl true
   def handle_other(
         {:set_remote_credentials, credentials},
         _ctx,
