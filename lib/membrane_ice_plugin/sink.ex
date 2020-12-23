@@ -41,7 +41,7 @@ defmodule Membrane.ICE.Sink do
   def handle_write(
         Pad.ref(:input, component_id) = pad,
         %Membrane.Buffer{payload: payload},
-        _ctx,
+        %{playback_state: :playing},
         %{ice: ice, stream_id: stream_id} = state
       ) do
     case ExLibnice.send_payload(ice, stream_id, component_id, payload) do
@@ -51,6 +51,12 @@ defmodule Membrane.ICE.Sink do
       {:error, cause} ->
         {{:ok, notify: {:could_not_send_payload, cause}}, state}
     end
+  end
+
+  @impl true
+  def handle_write(_pad, buffer, %{playback_state: playback_state}, state) do
+    Membrane.Logger.debug("Can't send message in playback state: #{playback_state}. Ignoring.")
+    {:ok, state}
   end
 
   @impl true
