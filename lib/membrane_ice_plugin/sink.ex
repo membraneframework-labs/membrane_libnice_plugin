@@ -6,6 +6,7 @@ defmodule Membrane.ICE.Sink do
   use Membrane.Sink
 
   alias Membrane.ICE.Handshake
+  alias Membrane.Funnel
 
   require Membrane.Logger
 
@@ -35,6 +36,18 @@ defmodule Membrane.ICE.Sink do
     else
       {:ok, state}
     end
+  end
+
+  @impl true
+  def handle_event(Pad.ref(:input, component_id) = pad, %Funnel.NewInputEvent{}, _ctx, state) do
+    handshake_data = state.ready_components[component_id]
+    event = {pad, %Handshake.Event{handshake_data: handshake_data}}
+    {{:ok, event: event}, state}
+  end
+
+  @impl true
+  def handle_event(_pad, _event, _ctx, state) do
+    {:ok, state}
   end
 
   @impl true
