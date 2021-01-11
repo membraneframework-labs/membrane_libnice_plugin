@@ -40,9 +40,13 @@ defmodule Membrane.ICE.Sink do
 
   @impl true
   def handle_event(Pad.ref(:input, component_id) = pad, %Funnel.NewInputEvent{}, _ctx, state) do
-    handshake_data = state.ready_components[component_id]
-    event = {pad, %Handshake.Event{handshake_data: handshake_data}}
-    {{:ok, event: event}, state}
+    if Map.has_key?(state.ready_components, component_id) do
+      handshake_data = state.ready_components[component_id]
+      event = {pad, %Handshake.Event{handshake_data: handshake_data}}
+      {{:ok, event: event}, state}
+    else
+      {:ok, state}
+    end
   end
 
   @impl true
