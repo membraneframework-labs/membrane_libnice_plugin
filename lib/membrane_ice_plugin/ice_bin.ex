@@ -206,6 +206,12 @@ defmodule Membrane.ICE.Bin do
   end
 
   @impl true
+  def handle_other(:restart_stream, _ctx, %{connector: connector} = state) do
+    {:ok, credentials} = Connector.restart_stream(connector)
+    {{:ok, notify: {:local_credentials, credentials}}, state}
+  end
+
+  @impl true
   def handle_other(:peer_candidate_gathering_done, _ctx, %{connector: connector} = state) do
     Connector.peer_candidate_gathering_done(connector)
     {:ok, state}
