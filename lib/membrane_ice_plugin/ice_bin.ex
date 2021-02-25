@@ -33,7 +33,7 @@ defmodule Membrane.ICE.Bin do
   - `{:set_remote_credentials, credentials}` - credentials are string in form of "ufrag passwd"
 
   - `{:set_remote_candidate, candidate, component_id}` - candidate is a string in form of
-  SDP attribute i.e. it has prefix "a=" e.g. "a=candidate 1 " #TODO
+  SDP attribute i.e. it has prefix "a=" e.g. "a=candidate 1 "
 
   - `{:parse_remote_sdp, sdp}`
 

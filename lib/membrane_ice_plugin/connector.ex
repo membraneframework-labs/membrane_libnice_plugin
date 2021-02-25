@@ -177,6 +177,17 @@ defmodule Membrane.ICE.Connector do
 
   @impl true
   def handle_call(
+        {:set_remote_candidate, "a=", _component_id},
+        _from,
+        %State{ice: ice, stream_id: stream_id} = state
+      ) do
+    # sending an empty candidate means end of peer's gathering process
+    ExLibnice.peer_candidate_gathering_done(ice, stream_id)
+    {:reply, :ok, state}
+  end
+
+  @impl true
+  def handle_call(
         {:set_remote_candidate, candidate, component_id},
         _from,
         %State{ice: ice, stream_id: stream_id} = state
