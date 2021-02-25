@@ -364,6 +364,9 @@ defmodule Membrane.ICE.Connector do
       :ok ->
         {{false, nil}, state}
 
+      {:ok, <<>>} ->
+        {{false, nil}, state}
+
       {:ok, packets} ->
         ExLibnice.send_payload(ice, stream_id, component_id, packets)
         {{false, nil}, state}
