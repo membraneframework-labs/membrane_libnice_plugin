@@ -375,23 +375,20 @@ defmodule Membrane.ICE.Connector do
       :ok ->
         {{false, nil}, state}
 
-      {:ok, <<>>} ->
-        {{false, nil}, state}
-
       {:ok, packets} ->
         ExLibnice.send_payload(ice, stream_id, component_id, packets)
         {{false, nil}, state}
 
-      {:finished_with_packets, handshake_data, packets} ->
-        ExLibnice.send_payload(ice, stream_id, component_id, packets)
-
+      {:finished, handshake_data} ->
         handshakes =
           Map.put(handshakes, component_id, {handshake_status, :finished, handshake_data})
 
         new_state = %State{state | handshakes: handshakes}
         {{true, handshake_data}, new_state}
 
-      {:finished, handshake_data} ->
+      {:finished, handshake_data, packets} ->
+        ExLibnice.send_payload(ice, stream_id, component_id, packets)
+
         handshakes =
           Map.put(handshakes, component_id, {handshake_status, :finished, handshake_data})
 
