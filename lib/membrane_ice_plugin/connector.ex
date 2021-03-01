@@ -31,7 +31,8 @@ defmodule Membrane.ICE.Connector do
             handshakes: handshakes(),
             handshake_module: Handshake.t(),
             handshake_opts: list(),
-            connections: MapSet.t()
+            connections: MapSet.t(),
+            cached_handshake_packets: %{key: component_id(), value: binary()}
           }
     defstruct parent: nil,
               ice: nil,
@@ -42,7 +43,8 @@ defmodule Membrane.ICE.Connector do
               handshakes: %{},
               handshake_module: Handshake.Default,
               handshake_opts: [],
-              connections: MapSet.new()
+              connections: MapSet.new(),
+              cached_handshake_packets: %{}
   end
 
   @spec start_link(opts :: keyword()) :: {:ok, pid()}
@@ -259,6 +261,16 @@ defmodule Membrane.ICE.Connector do
     new_state = %State{state | connections: new_connections}
 
     if handshake_status != :finished do
+      Membrane.Logger.debug("Checking for cached handshake packets")
+      cached_packets = Map.get(state.cached_handshake_packets, component_id, nil)
+
+      if cached_packets == nil do
+        Membrane.Logger.debug("Nothing to be sent for component: #{component_id}")
+      else
+        Membrane.Logger.debug("Sending cached handshake packets for component: #{component_id}")
+        ExLibnice.send_payload(ice, stream_id, component_id, cached_packets)
+      end
+
       res = handshake_module.connection_ready(handshake_state)
 
       {{finished?, handshake_data}, new_state} =
@@ -376,8 +388,15 @@ defmodule Membrane.ICE.Connector do
         {{false, nil}, state}
 
       {:ok, packets} ->
-        ExLibnice.send_payload(ice, stream_id, component_id, packets)
-        {{false, nil}, state}
+        if MapSet.member?(state.connections, component_id) do
+          ExLibnice.send_payload(ice, stream_id, component_id, packets)
+          {{false, nil}, state}
+        else
+          cached_handshake_packets =
+            Map.put(state.cached_handshake_packets, component_id, packets)
+
+          {{false, nil}, %State{state | cached_handshake_packets: cached_handshake_packets}}
+        end
 
       {:finished, handshake_data} ->
         handshakes =
