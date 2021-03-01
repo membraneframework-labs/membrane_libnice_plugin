@@ -92,7 +92,7 @@ defmodule Membrane.ICE.Connector do
     GenServer.call(pid, {:set_remote_candidate, candidate, component_id})
   end
 
-  @spec restart_stream(connector :: pid()) :: :ok
+  @spec restart_stream(connector :: pid()) :: {:ok, credentials: String.t()}
   def restart_stream(pid) do
     GenServer.call(pid, :restart_stream)
   end
