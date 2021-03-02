@@ -179,17 +179,6 @@ defmodule Membrane.ICE.Connector do
 
   @impl true
   def handle_call(
-        {:set_remote_candidate, "a=", _component_id},
-        _from,
-        %State{ice: ice, stream_id: stream_id} = state
-      ) do
-    # sending an empty candidate means end of peer's gathering process
-    ExLibnice.peer_candidate_gathering_done(ice, stream_id)
-    {:reply, :ok, state}
-  end
-
-  @impl true
-  def handle_call(
         {:set_remote_candidate, candidate, component_id},
         _from,
         %State{ice: ice, stream_id: stream_id} = state
@@ -262,7 +251,7 @@ defmodule Membrane.ICE.Connector do
 
     if handshake_status != :finished do
       Membrane.Logger.debug("Checking for cached handshake packets")
-      cached_packets = Map.get(state.cached_handshake_packets, component_id, nil)
+      {cached_packets, new_state} = pop_in(state.cached_handshake_packets[component_id])
 
       if cached_packets == nil do
         Membrane.Logger.debug("Nothing to be sent for component: #{component_id}")
@@ -392,10 +381,7 @@ defmodule Membrane.ICE.Connector do
           ExLibnice.send_payload(ice, stream_id, component_id, packets)
           {{false, nil}, state}
         else
-          cached_handshake_packets =
-            Map.put(state.cached_handshake_packets, component_id, packets)
-
-          {{false, nil}, %State{state | cached_handshake_packets: cached_handshake_packets}}
+          {{false, nil}, put_in(state.cached_handshake_packets[component_id], packets)}
         end
 
       {:finished, handshake_data} ->

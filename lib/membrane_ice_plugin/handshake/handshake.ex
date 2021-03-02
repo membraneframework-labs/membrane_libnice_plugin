@@ -56,7 +56,7 @@ defmodule Membrane.ICE.Handshake do
   a new one.
 
   If packets cannot be immediately sent (because ICE is not ready yet) they will be cached and
-  send as soon as it is possible (i.e. when ICE is ready).
+  sent as soon as it is possible (i.e. when ICE is ready).
 
   Message `{:finished_with_packets, handshake_data, packets}` should be return by a peer that ends
   its handshake first but it generates also some final packets so that the second peer can end its
