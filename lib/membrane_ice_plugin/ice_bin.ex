@@ -75,6 +75,10 @@ defmodule Membrane.ICE.Bin do
                 default: [],
                 description: "List of stun servers in form of ip:port"
               ],
+              turn_servers: [
+                default: [],
+                description: "List of turn servers"
+              ],
               controlling_mode: [
                 type: :bool,
                 default: false,
@@ -115,6 +119,7 @@ defmodule Membrane.ICE.Bin do
       n_components: n_components,
       stream_name: stream_name,
       stun_servers: stun_servers,
+      turn_servers: turn_servers,
       controlling_mode: controlling_mode,
       port_range: port_range,
       handshake_module: handshake_module,
@@ -127,6 +132,7 @@ defmodule Membrane.ICE.Bin do
         n_components: n_components,
         stream_name: stream_name,
         stun_servers: stun_servers,
+        turn_servers: turn_servers,
         controlling_mode: controlling_mode,
         port_range: port_range,
         handshake_module: handshake_module,
