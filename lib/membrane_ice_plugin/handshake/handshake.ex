@@ -44,14 +44,19 @@ defmodule Membrane.ICE.Handshake do
   @callback connection_ready(state :: state()) ::
               :ok
               | {:ok, packets :: binary()}
-              | {:finished_with_packets, handshake_data :: term(), packets :: binary()}
+              | {:finished, handshake_data :: term(), packets :: binary()}
               | {:finished, handshake_data :: term()}
 
   @doc """
   Called each time remote data arrives.
 
+  Message `:ok` should be returned when peer processed incoming data without generating a new one.
+
   Message `{:ok, packets}` should be returned when peer processed incoming data and generated
   a new one.
+
+  If packets cannot be immediately sent (because ICE is not ready yet) they will be cached and
+  sent as soon as it is possible (i.e. when ICE is ready).
 
   Message `{:finished_with_packets, handshake_data, packets}` should be return by a peer that ends
   its handshake first but it generates also some final packets so that the second peer can end its
@@ -64,7 +69,8 @@ defmodule Membrane.ICE.Handshake do
   `handshake_data` is any data user want to return after finishing handshake.
   """
   @callback recv_from_peer(state :: state(), data :: binary()) ::
-              {:ok, packets :: binary()}
-              | {:finished_with_packets, handshake_data :: term(), packets :: binary()}
+              :ok
+              | {:ok, packets :: binary()}
+              | {:finished, handshake_data :: term(), packets :: binary()}
               | {:finished, handshake_data :: term()}
 end

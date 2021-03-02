@@ -31,7 +31,8 @@ defmodule Membrane.ICE.Connector do
             handshakes: handshakes(),
             handshake_module: Handshake.t(),
             handshake_opts: list(),
-            connections: MapSet.t()
+            connections: MapSet.t(),
+            cached_handshake_packets: %{key: component_id(), value: binary()}
           }
     defstruct parent: nil,
               ice: nil,
@@ -42,7 +43,8 @@ defmodule Membrane.ICE.Connector do
               handshakes: %{},
               handshake_module: Handshake.Default,
               handshake_opts: [],
-              connections: MapSet.new()
+              connections: MapSet.new(),
+              cached_handshake_packets: %{}
   end
 
   @spec start_link(opts :: keyword()) :: {:ok, pid()}
@@ -90,7 +92,7 @@ defmodule Membrane.ICE.Connector do
     GenServer.call(pid, {:set_remote_candidate, candidate, component_id})
   end
 
-  @spec restart_stream(connector :: pid()) :: :ok
+  @spec restart_stream(connector :: pid()) :: {:ok, credentials: String.t()}
   def restart_stream(pid) do
     GenServer.call(pid, :restart_stream)
   end
@@ -131,11 +133,11 @@ defmodule Membrane.ICE.Connector do
 
   @impl true
   def handle_call(:run, _from, %State{ice: ice} = state) do
-    with {:ok, handshake_init_data, %State{stream_id: stream_id} = new_state} <-
+    with {:ok, handshake_init_data, %State{stream_id: stream_id} = state} <-
            add_stream(state),
          {:ok, credentials} <- ExLibnice.get_local_credentials(ice, stream_id),
          :ok <- ExLibnice.gather_candidates(ice, stream_id) do
-      {:reply, {:ok, handshake_init_data, credentials}, new_state}
+      {:reply, {:ok, handshake_init_data, credentials}, state}
     else
       {:error, cause} -> {:stop, {:error, cause}, state}
     end
@@ -245,25 +247,35 @@ defmodule Membrane.ICE.Connector do
     {handshake_state, handshake_status, handshake_data} = Map.get(handshakes, component_id)
 
     new_connections = MapSet.put(state.connections, component_id)
-    new_state = %State{state | connections: new_connections}
+    state = %State{state | connections: new_connections}
 
     if handshake_status != :finished do
+      Membrane.Logger.debug("Checking for cached handshake packets")
+      {cached_packets, state} = pop_in(state.cached_handshake_packets[component_id])
+
+      if cached_packets == nil do
+        Membrane.Logger.debug("Nothing to be sent for component: #{component_id}")
+      else
+        Membrane.Logger.debug("Sending cached handshake packets for component: #{component_id}")
+        ExLibnice.send_payload(ice, stream_id, component_id, cached_packets)
+      end
+
       res = handshake_module.connection_ready(handshake_state)
 
-      {{finished?, handshake_data}, new_state} =
-        parse_result(res, ice, stream_id, component_id, handshakes, handshake_state, new_state)
+      {{finished?, handshake_data}, state} =
+        parse_result(res, ice, stream_id, component_id, handshakes, handshake_state, state)
 
       if finished? do
         msg = {:component_ready, stream_id, component_id, handshake_data}
         send(parent, msg)
-        {:noreply, new_state}
+        {:noreply, state}
       else
-        {:noreply, new_state}
+        {:noreply, state}
       end
     else
       msg = {:component_ready, stream_id, component_id, handshake_data}
       send(parent, msg)
-      {:noreply, new_state}
+      {:noreply, state}
     end
   end
 
@@ -281,7 +293,7 @@ defmodule Membrane.ICE.Connector do
     if handshake_status != :finished do
       res = handshake_module.recv_from_peer(handshake_state, payload)
 
-      {{finished?, handshake_data}, new_state} =
+      {{finished?, handshake_data}, state} =
         parse_result(res, ice, stream_id, component_id, handshakes, handshake_state, state)
 
       if finished? do
@@ -291,9 +303,9 @@ defmodule Membrane.ICE.Connector do
       if finished? and MapSet.member?(state.connections, component_id) do
         msg = {:component_ready, stream_id, component_id, handshake_data}
         send(parent, msg)
-        {:noreply, new_state}
+        {:noreply, state}
       else
-        {:noreply, new_state}
+        {:noreply, state}
       end
     else
       msg = {:ice_payload, component_id, payload}
@@ -330,8 +342,8 @@ defmodule Membrane.ICE.Connector do
             {component_id, init_data}
           end)
 
-        new_state = %State{state | stream_id: stream_id, handshakes: handshakes}
-        {:ok, handshake_init_data, new_state}
+        state = %State{state | stream_id: stream_id, handshakes: handshakes}
+        {:ok, handshake_init_data, state}
 
       {:error, cause} ->
         {:error, cause}
@@ -357,32 +369,33 @@ defmodule Membrane.ICE.Connector do
           handshake_status :: State.handshake_status(),
           state :: State.t()
         ) ::
-          {{finished? :: bool(), handshake_data :: State.handshake_data()},
-           new_state :: State.t()}
+          {{finished? :: bool(), handshake_data :: State.handshake_data()}, state :: State.t()}
   defp parse_result(res, ice, stream_id, component_id, handshakes, handshake_status, state) do
     case res do
       :ok ->
         {{false, nil}, state}
 
       {:ok, packets} ->
-        ExLibnice.send_payload(ice, stream_id, component_id, packets)
-        {{false, nil}, state}
-
-      {:finished_with_packets, handshake_data, packets} ->
-        ExLibnice.send_payload(ice, stream_id, component_id, packets)
-
-        handshakes =
-          Map.put(handshakes, component_id, {handshake_status, :finished, handshake_data})
-
-        new_state = %State{state | handshakes: handshakes}
-        {{true, handshake_data}, new_state}
+        if MapSet.member?(state.connections, component_id) do
+          ExLibnice.send_payload(ice, stream_id, component_id, packets)
+          {{false, nil}, state}
+        else
+          {{false, nil}, put_in(state.cached_handshake_packets[component_id], packets)}
+        end
 
       {:finished, handshake_data} ->
         handshakes =
           Map.put(handshakes, component_id, {handshake_status, :finished, handshake_data})
 
-        new_state = %State{state | handshakes: handshakes}
-        {{true, handshake_data}, new_state}
+        {{true, handshake_data}, %State{state | handshakes: handshakes}}
+
+      {:finished, handshake_data, packets} ->
+        ExLibnice.send_payload(ice, stream_id, component_id, packets)
+
+        handshakes =
+          Map.put(handshakes, component_id, {handshake_status, :finished, handshake_data})
+
+        {{true, handshake_data}, %State{state | handshakes: handshakes}}
     end
   end
 end
