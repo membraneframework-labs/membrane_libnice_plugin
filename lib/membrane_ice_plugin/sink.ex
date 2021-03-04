@@ -26,23 +26,18 @@ defmodule Membrane.ICE.Sink do
   def handle_init(options) do
     %__MODULE__{ice: ice} = options
 
-    {:ok, %{:ice => ice, :ready_components => %{}}}
+    {:ok, %{:ice => ice, :ready_components => MapSet.new(), :finished_hsk => %{}}}
   end
 
   @impl true
-  def handle_pad_added(Pad.ref(:input, component_id) = pad, _ctx, state) do
-    if Map.has_key?(state.ready_components, component_id) do
-      {{:ok, get_initial_actions(pad, state.ready_components[component_id])}, state}
-    else
-      {:ok, state}
-    end
-  end
+  def handle_pad_added(Pad.ref(:input, component_id), ctx, state),
+    do: maybe_send_demands(component_id, ctx, state)
 
   @impl true
   def handle_event(Pad.ref(:input, component_id) = pad, %Funnel.NewInputEvent{}, _ctx, state) do
-    if Map.has_key?(state.ready_components, component_id) do
-      handshake_data = state.ready_components[component_id]
-      event = {pad, %Handshake.Event{handshake_data: handshake_data}}
+    if Map.has_key?(state.finished_hsk, component_id) do
+      hsk_data = state.finished_hsk[component_id]
+      event = {pad, %Handshake.Event{hsk_data: hsk_data}}
       {{:ok, event: event}, state}
     else
       {:ok, state}
@@ -77,20 +72,28 @@ defmodule Membrane.ICE.Sink do
   end
 
   @impl true
-  def handle_other({:component_ready, stream_id, component_id, handshake_data}, ctx, state) do
+  def handle_other({:component_state_ready, stream_id, component_id}, ctx, state) do
     state = Map.put(state, :stream_id, stream_id)
-    state = put_in(state, [:ready_components, component_id], handshake_data)
+    state = %{state | ready_components: MapSet.put(state.ready_components, component_id)}
+    maybe_send_demands(component_id, ctx, state)
+  end
 
+  @impl true
+  def handle_other({:hsk_finished, component_id, hsk_data}, ctx, state) do
+    state = put_in(state.finished_hsk[component_id], hsk_data)
+    maybe_send_demands(component_id, ctx, state)
+  end
+
+  defp maybe_send_demands(component_id, ctx, state) do
     pad = Pad.ref(:input, component_id)
-
-    if Map.has_key?(ctx.pads, pad) do
-      {{:ok, get_initial_actions(pad, handshake_data)}, state}
+    # if something is linked, component is ready and handshake is done then send demands
+    if Map.has_key?(ctx.pads, pad) and MapSet.member?(state.ready_components, component_id) and
+         Map.has_key?(state.finished_hsk, component_id) do
+      hsk_data = Map.get(state.finished_hsk, component_id)
+      actions = [demand: pad, event: {pad, %Handshake.Event{hsk_data: hsk_data}}]
+      {{:ok, actions}, state}
     else
       {:ok, state}
     end
-  end
-
-  defp get_initial_actions(pad, handshake_data) do
-    [demand: pad, event: {pad, %Handshake.Event{handshake_data: handshake_data}}]
   end
 end

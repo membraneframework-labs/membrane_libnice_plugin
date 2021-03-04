@@ -18,15 +18,15 @@ defmodule Membrane.ICE.IntegrationTest do
     {:ok, tx_pid} =
       Testing.Pipeline.start_link(%Testing.Pipeline.Options{
         module: Membrane.ICE.Support.TestSender,
-        custom_args: [handshake_module: Handshake.Default, handshake_opts: []]
+        custom_args: [hsk_module: Handshake.Default, hsk_opts: []]
       })
 
     {:ok, rx_pid} =
       Testing.Pipeline.start_link(%Testing.Pipeline.Options{
         module: Membrane.ICE.Support.TestReceiver,
         custom_args: [
-          handshake_module: Handshake.Default,
-          handshake_opts: [],
+          hsk_module: Handshake.Default,
+          hsk_opts: [],
           file_path: @file_path
         ]
       })

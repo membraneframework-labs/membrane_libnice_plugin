@@ -4,6 +4,6 @@ defmodule Membrane.ICE.Handshake.Event do
   """
   @derive Membrane.EventProtocol
 
-  @type t :: %__MODULE__{handshake_data: any()}
-  defstruct handshake_data: nil
+  @type t :: %__MODULE__{hsk_data: any()}
+  defstruct hsk_data: nil
 end
