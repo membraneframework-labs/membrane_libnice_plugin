@@ -28,7 +28,7 @@ defmodule Membrane.ICE.Connector do
             stream_id: integer(),
             n_components: integer(),
             stream_name: String.t(),
-            turn_servers: [],
+            turn_servers: [ExLibnice.relay_info()],
             handshakes: handshakes(),
             handshake_module: Handshake.t(),
             handshake_opts: list(),
@@ -138,7 +138,7 @@ defmodule Membrane.ICE.Connector do
   def handle_call(:run, _from, %State{ice: ice} = state) do
     with {:ok, handshake_init_data, %State{stream_id: stream_id} = state} <-
            add_stream(state),
-         :ok <- add_turn_servers(ice, stream_id, state.n_components, state.turn_servers),
+         :ok <- ExLibnice.set_relay_info(ice, stream_id, :all, state.turn_servers),
          {:ok, credentials} <- ExLibnice.get_local_credentials(ice, stream_id),
          :ok <- ExLibnice.gather_candidates(ice, stream_id) do
       {:reply, {:ok, handshake_init_data, credentials}, state}
@@ -359,27 +359,6 @@ defmodule Membrane.ICE.Connector do
 
   defp get_init_data_from_init_result({:ok, init_data, _state}), do: init_data
   defp get_init_data_from_init_result({:finished, init_data}), do: init_data
-
-  defp add_turn_servers(ice, stream_id, n_components, turn_servers) do
-    turn_servers
-    |> Enum.each(&add_turn_server(ice, stream_id, n_components, &1))
-  end
-
-  defp add_turn_server(ice, stream_id, n_components, {ip, port, username, password, relay_type}) do
-    1..n_components
-    |> Enum.each(
-      &ExLibnice.set_relay_info(
-        ice,
-        stream_id,
-        &1,
-        ip,
-        port,
-        username,
-        password,
-        relay_type
-      )
-    )
-  end
 
   @spec parse_result(
           res ::

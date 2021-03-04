@@ -61,45 +61,45 @@ defmodule Membrane.ICE.Bin do
   require Membrane.Logger
 
   def_options n_components: [
-                type: :integer,
+                spec: integer(),
                 default: 1,
                 description: "Number of components that will be created in the stream"
               ],
               stream_name: [
-                type: :string,
+                spec: String.t(),
                 default: "",
                 description: "Name of the stream"
               ],
               stun_servers: [
-                type: [:string],
+                spec: [String.t()],
                 default: [],
                 description: "List of stun servers in form of ip:port"
               ],
               turn_servers: [
+                spec: [ExLibnice.relay_info()],
                 default: [],
                 description: "List of turn servers"
               ],
               controlling_mode: [
-                type: :bool,
+                spec: boolean(),
                 default: false,
                 description: "Refer to RFC 8445 section 4 - Controlling and Controlled Agent"
               ],
               port_range: [
-                type: :range,
+                spec: Range.t(),
                 default: 0..0,
                 description: "The port range to use"
               ],
               handshake_module: [
-                type: :module,
+                spec: module(),
                 default: Handshake.Default,
                 description: "Module implementing Handshake behaviour"
               ],
               handshake_opts: [
-                type: :list,
+                spec: keyword(),
                 default: [],
                 description:
-                  "Options for handshake module. They will be passed to init function of
-                handshake_module"
+                  "Options for handshake module. They will be passed to init function of handshake_module"
               ]
 
   def_input_pad :input,

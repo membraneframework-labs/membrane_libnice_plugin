@@ -39,7 +39,7 @@ defmodule Membrane.ICE.Plugin.Mixfile do
       {:membrane_core, "~> 0.6.1"},
       {:unifex, "~> 0.3.2"},
       {:bunch, "~> 1.3.0"},
-      {:ex_libnice, github: "membraneframework/ex_libnice", branch: "master"},
+      {:ex_libnice, "~> 0.2.0"},
       {:membrane_funnel_plugin, "~> 0.1.0"},
       {:ex_doc, "~> 0.23", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
