@@ -389,7 +389,7 @@ defmodule Membrane.ICE.Connector do
 
         {{true, handshake_data}, %State{state | handshakes: handshakes}}
 
-      {:finished, handshake_data, packets} ->
+      {:finished_with_packets, handshake_data, packets} ->
         ExLibnice.send_payload(ice, stream_id, component_id, packets)
 
         handshakes =
