@@ -51,10 +51,10 @@ defmodule Membrane.ICE.Handshake do
   @callback process(data :: binary(), state :: state()) ::
               :ok
               | {:ok, packets :: binary()}
-              | {:hsk_packets, packets :: binary()}
-              | {:hsk_finished, hsk_data :: any()}
-              | {:hsk_finished, hsk_data :: any(), packets :: binary()}
-              | {:error, value :: integer()}
+              | {:handshake_packets, packets :: binary()}
+              | {:handshake_finished, hsk_data :: any()}
+              | {:handshake_finished, hsk_data :: any(), packets :: binary()}
+              | {:error, reason :: atom()}
 
   @doc """
   Determines if given `data` should be treated as handshake packet and passed to `process/2`.

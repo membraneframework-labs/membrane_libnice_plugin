@@ -293,7 +293,7 @@ defmodule Membrane.ICE.Connector do
     {:noreply, state}
   end
 
-  defp handle_process({:hsk_packets, packets}, component_id, state) do
+  defp handle_process({:handshake_packets, packets}, component_id, state) do
     if MapSet.member?(state.connections, component_id) do
       ExLibnice.send_payload(state.ice, state.stream_id, component_id, packets)
       {:noreply, state}
@@ -305,10 +305,10 @@ defmodule Membrane.ICE.Connector do
     end
   end
 
-  defp handle_process({:hsk_finished, hsk_data}, component_id, state),
+  defp handle_process({:handshake_finished, hsk_data}, component_id, state),
     do: handle_end_of_hsk(component_id, hsk_data, state)
 
-  defp handle_process({:hsk_finished, hsk_data, packets}, component_id, state) do
+  defp handle_process({:handshake_finished, hsk_data, packets}, component_id, state) do
     ExLibnice.send_payload(state.ice, state.stream_id, component_id, packets)
     handle_end_of_hsk(component_id, hsk_data, state)
   end

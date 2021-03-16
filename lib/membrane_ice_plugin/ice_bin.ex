@@ -90,12 +90,12 @@ defmodule Membrane.ICE.Bin do
                 default: 0..0,
                 description: "The port range to use"
               ],
-              hsk_module: [
+              handshake_module: [
                 spec: module(),
                 default: Handshake.Default,
                 description: "Module implementing Handshake behaviour"
               ],
-              hsk_opts: [
+              handshake_opts: [
                 spec: keyword(),
                 default: [],
                 description:
@@ -122,8 +122,8 @@ defmodule Membrane.ICE.Bin do
       turn_servers: turn_servers,
       controlling_mode: controlling_mode,
       port_range: port_range,
-      hsk_module: hsk_module,
-      hsk_opts: hsk_opts
+      handshake_module: hsk_module,
+      handshake_opts: hsk_opts
     } = options
 
     {:ok, connector} =

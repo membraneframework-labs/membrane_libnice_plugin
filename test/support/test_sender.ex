@@ -13,8 +13,8 @@ defmodule Membrane.ICE.Support.TestSender do
       ice: %Membrane.ICE.Bin{
         stun_servers: ["64.233.161.127:19302"],
         controlling_mode: true,
-        hsk_module: opts[:hsk_module],
-        hsk_opts: opts[:hsk_opts]
+        handshake_module: opts[:handshake_module],
+        handshake_opts: opts[:handshake_opts]
       },
       source: %Hackney.Source{
         location: "https://membraneframework.github.io/static/video-samples/test-video.h264"
