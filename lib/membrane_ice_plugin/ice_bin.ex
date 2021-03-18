@@ -172,7 +172,7 @@ defmodule Membrane.ICE.Bin do
     actions =
       hsk_init_data
       |> Enum.map(fn {component_id, init_data} ->
-        {:notify, {:hsk_init_data, component_id, init_data}}
+        {:notify, {:handshake_init_data, component_id, init_data}}
       end)
 
     actions = actions ++ [{:notify, {:local_credentials, credentials}}]

@@ -37,7 +37,7 @@ defmodule Membrane.ICE.Sink do
   def handle_event(Pad.ref(:input, component_id) = pad, %Funnel.NewInputEvent{}, _ctx, state) do
     if Map.has_key?(state.finished_hsk, component_id) do
       hsk_data = state.finished_hsk[component_id]
-      event = {pad, %Handshake.Event{hsk_data: hsk_data}}
+      event = {pad, %Handshake.Event{handshake_data: hsk_data}}
       {{:ok, event: event}, state}
     else
       {:ok, state}
@@ -90,7 +90,7 @@ defmodule Membrane.ICE.Sink do
     if Map.has_key?(ctx.pads, pad) and MapSet.member?(state.ready_components, component_id) and
          Map.has_key?(state.finished_hsk, component_id) do
       hsk_data = Map.get(state.finished_hsk, component_id)
-      actions = [demand: pad, event: {pad, %Handshake.Event{hsk_data: hsk_data}}]
+      actions = [demand: pad, event: {pad, %Handshake.Event{handshake_data: hsk_data}}]
       {{:ok, actions}, state}
     else
       {:ok, state}
