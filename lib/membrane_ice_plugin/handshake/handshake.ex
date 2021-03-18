@@ -54,7 +54,7 @@ defmodule Membrane.ICE.Handshake do
               | {:handshake_packets, packets :: binary()}
               | {:handshake_finished, hsk_data :: any()}
               | {:handshake_finished, hsk_data :: any(), packets :: binary()}
-              | {:error, reason :: atom()}
+              | {:connection_closed, reason :: atom()}
 
   @doc """
   Determines if given `data` should be treated as handshake packet and passed to `process/2`.

@@ -313,8 +313,8 @@ defmodule Membrane.ICE.Connector do
     handle_end_of_hsk(component_id, hsk_data, state)
   end
 
-  defp handle_process({:error, _value}, _component_id, state) do
-    Membrane.Logger.warn("Got error from handshake module. Ignoring for now.")
+  defp handle_process({:connection_closed, reason}, _component_id, state) do
+    Membrane.Logger.debug("Connection closed, reason: #{inspect(reason)}. Ignoring for now.")
     {:noreply, state}
   end
 
