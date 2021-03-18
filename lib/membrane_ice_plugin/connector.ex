@@ -288,6 +288,10 @@ defmodule Membrane.ICE.Connector do
     :ok
   end
 
+  defp handle_process(:ok, _component_id, state) do
+    {:noreply, state}
+  end
+
   defp handle_process({:ok, _packets}, _component_id, state) do
     Membrane.Logger.warn("Got regular handshake packet. Ignoring for now.")
     {:noreply, state}
