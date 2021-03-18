@@ -7,17 +7,14 @@ defmodule Membrane.ICE.Handshake.Default do
   @behaviour Membrane.ICE.Handshake
 
   @impl true
-  def init(_opts) do
-    {:finished, nil}
-  end
+  def init(_id, _parent, _opts), do: {:finished, nil}
 
   @impl true
-  def connection_ready(_state) do
-    {:finished, nil}
-  end
+  def connection_ready(_state), do: :ok
 
   @impl true
-  def recv_from_peer(_state, _data) do
-    {:finished, nil}
-  end
+  def process(_data, _state), do: :ok
+
+  @impl true
+  def is_hsk_packet(_data, _state), do: false
 end

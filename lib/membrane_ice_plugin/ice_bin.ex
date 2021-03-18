@@ -71,9 +71,9 @@ defmodule Membrane.ICE.Bin do
                 description: "Name of the stream"
               ],
               stun_servers: [
-                spec: [String.t()],
+                spec: [ExLibnice.stun_server()],
                 default: [],
-                description: "List of stun servers in form of ip:port"
+                description: "List of stun servers"
               ],
               turn_servers: [
                 spec: [ExLibnice.relay_info()],
@@ -99,7 +99,7 @@ defmodule Membrane.ICE.Bin do
                 spec: keyword(),
                 default: [],
                 description:
-                  "Options for handshake module. They will be passed to init function of handshake_module"
+                  "Options for handshake module. They will be passed to init function of hsk_module"
               ]
 
   def_input_pad :input,
@@ -122,8 +122,8 @@ defmodule Membrane.ICE.Bin do
       turn_servers: turn_servers,
       controlling_mode: controlling_mode,
       port_range: port_range,
-      handshake_module: handshake_module,
-      handshake_opts: handshake_opts
+      handshake_module: hsk_module,
+      handshake_opts: hsk_opts
     } = options
 
     {:ok, connector} =
@@ -135,8 +135,8 @@ defmodule Membrane.ICE.Bin do
         turn_servers: turn_servers,
         controlling_mode: controlling_mode,
         port_range: port_range,
-        handshake_module: handshake_module,
-        handshake_opts: handshake_opts
+        hsk_module: hsk_module,
+        hsk_opts: hsk_opts
       )
 
     {:ok, ice} = Connector.get_ice_pid(connector)
@@ -167,10 +167,10 @@ defmodule Membrane.ICE.Bin do
 
   @impl true
   def handle_prepared_to_playing(_ctx, %{connector: connector} = state) do
-    {:ok, handshake_init_data, credentials} = Connector.run(connector)
+    {:ok, hsk_init_data, credentials} = Connector.run(connector)
 
     actions =
-      handshake_init_data
+      hsk_init_data
       |> Enum.map(fn {component_id, init_data} ->
         {:notify, {:handshake_init_data, component_id, init_data}}
       end)
@@ -224,19 +224,12 @@ defmodule Membrane.ICE.Bin do
   end
 
   @impl true
-  def handle_other(
-        {:component_ready, _stream_id, _component_id, _handshake_data} = msg,
-        _ctx,
-        state
-      ) do
-    actions = [forward: {:ice_sink, msg}]
-    {{:ok, actions}, state}
-  end
+  def handle_other({:component_state_ready, _stream_id, _component_id} = msg, _ctx, state),
+    do: {{:ok, forward: {:ice_sink, msg}}, state}
 
   @impl true
-  def handle_other({:handshake_data, _component_id, _handshake_data} = msg, _ctx, state) do
-    {{:ok, forward: {:ice_source, msg}}, state}
-  end
+  def handle_other({:hsk_finished, _component_id, _hsk_data} = msg, _ctx, state),
+    do: {{:ok, [forward: {:ice_source, msg}, forward: {:ice_sink, msg}]}, state}
 
   @impl true
   def handle_other({:ice_payload, component_id, _payload} = msg, ctx, state) do
@@ -249,7 +242,5 @@ defmodule Membrane.ICE.Bin do
   end
 
   @impl true
-  def handle_other(msg, _ctx, state) do
-    {{:ok, notify: msg}, state}
-  end
+  def handle_other(msg, _ctx, state), do: {{:ok, notify: msg}, state}
 end
