@@ -11,7 +11,7 @@ defmodule Membrane.ICE.Support.TestSender do
   def handle_init(opts) do
     children = %{
       ice: %Membrane.ICE.Bin{
-        stun_servers: ["64.233.161.127:19302"],
+        stun_servers: [%{server_addr: "stun1.l.google.com", server_port: 19_302}],
         controlling_mode: true,
         handshake_module: opts[:handshake_module],
         handshake_opts: opts[:handshake_opts]

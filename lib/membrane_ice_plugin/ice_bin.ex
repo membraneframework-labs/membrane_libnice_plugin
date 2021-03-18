@@ -71,9 +71,9 @@ defmodule Membrane.ICE.Bin do
                 description: "Name of the stream"
               ],
               stun_servers: [
-                spec: [String.t()],
+                spec: [ExLibnice.stun_server()],
                 default: [],
-                description: "List of stun servers in form of ip:port"
+                description: "List of stun servers"
               ],
               turn_servers: [
                 spec: [ExLibnice.relay_info()],
