@@ -17,7 +17,7 @@ The package can be installed by adding `membrane_ice_plugin` to your list of dep
 ```elixir
 def deps do
   [
-    {:membrane_ice_plugin, "~> 0.4.0"}
+    {:membrane_ice_plugin, "~> 0.4.1"}
   ]
 end
 ```
