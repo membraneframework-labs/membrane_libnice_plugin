@@ -181,7 +181,7 @@ defmodule Membrane.ICE.Bin do
 
   @impl true
   def handle_prepared_to_stopped(_ctx, %{connector: connector} = state) do
-    Connector.stop(connector)
+    Connector.clean_ice(connector)
     {:ok, state}
   end
 
@@ -243,4 +243,9 @@ defmodule Membrane.ICE.Bin do
 
   @impl true
   def handle_other(msg, _ctx, state), do: {{:ok, notify: msg}, state}
+
+  @impl true
+  def handle_shutdown(_reason, %{connector: connector}) do
+    GenServer.stop(connector)
+  end
 end

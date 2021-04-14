@@ -99,9 +99,9 @@ defmodule Membrane.ICE.Connector do
     GenServer.call(pid, :restart_stream)
   end
 
-  @spec stop(connector :: pid()) :: :ok
-  def stop(pid) do
-    GenServer.call(pid, :stop)
+  @spec clean_ice(connector :: pid()) :: :ok
+  def clean_ice(pid) do
+    GenServer.call(pid, :clean_ice)
   end
 
   # Server API
@@ -203,7 +203,7 @@ defmodule Membrane.ICE.Connector do
   end
 
   @impl true
-  def handle_call(:stop, _from, %State{ice: ice, stream_id: stream_id} = state) do
+  def handle_call(:clean_ice, _from, %State{ice: ice, stream_id: stream_id} = state) do
     ExLibnice.remove_stream(ice, stream_id)
     {:reply, :ok, state}
   end
