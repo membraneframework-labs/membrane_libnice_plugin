@@ -37,7 +37,7 @@ defmodule Membrane.ICE.Plugin.Mixfile do
   defp deps do
     [
       {:membrane_core,
-       github: "membraneframework/membrane_core", branch: "bin-handle-shutdown", override: true},
+       github: "membraneframework/membrane_core", branch: "develop", override: true},
       {:unifex, "~> 0.3.2"},
       {:bunch, "~> 1.3.0"},
       {:ex_libnice, "~> 0.3.0"},
