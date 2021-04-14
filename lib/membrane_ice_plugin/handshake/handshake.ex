@@ -60,4 +60,9 @@ defmodule Membrane.ICE.Handshake do
   Determines if given `data` should be treated as handshake packet and passed to `process/2`.
   """
   @callback is_hsk_packet(data :: binary(), state :: state()) :: boolean()
+
+  @doc """
+  Called once component is no longer needed and should cleanup resources.
+  """
+  @callback stop(state :: state()) :: :ok
 end

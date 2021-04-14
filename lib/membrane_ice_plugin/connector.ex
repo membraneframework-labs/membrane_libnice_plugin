@@ -282,7 +282,11 @@ defmodule Membrane.ICE.Connector do
   end
 
   @impl true
-  def terminate(_reason, %State{ice: ice}) do
+  def terminate(_reason, %State{ice: ice, hsk_module: hsk_module, handshakes: handshakes}) do
+    handshakes
+    |> Map.values()
+    |> Enum.each(fn {state, _status, _data} -> hsk_module.stop(state) end)
+
     GenServer.stop(ice)
   end
 
