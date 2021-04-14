@@ -17,4 +17,7 @@ defmodule Membrane.ICE.Handshake.Default do
 
   @impl true
   def is_hsk_packet(_data, _state), do: false
+
+  @impl true
+  def stop(_state), do: :ok
 end
