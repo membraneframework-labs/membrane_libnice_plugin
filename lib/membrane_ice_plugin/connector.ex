@@ -281,6 +281,15 @@ defmodule Membrane.ICE.Connector do
     {:noreply, state}
   end
 
+  @impl true
+  def terminate(_reason, %State{ice: ice, hsk_module: hsk_module, handshakes: handshakes}) do
+    handshakes
+    |> Map.values()
+    |> Enum.each(fn {state, _status, _data} -> hsk_module.stop(state) end)
+
+    GenServer.stop(ice)
+  end
+
   defp handle_connection_ready(:ok, _component_id, _state), do: :ok
 
   defp handle_connection_ready({:ok, packets}, component_id, state) do
