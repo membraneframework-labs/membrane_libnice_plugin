@@ -282,10 +282,8 @@ defmodule Membrane.ICE.Connector do
   end
 
   @impl true
-  def terminate(reason, state) do
-    if reason == :normal do
-      GenServer.stop(state.ice)
-    end
+  def terminate(_reason, %State{ice: ice}) do
+    GenServer.stop(ice)
   end
 
   defp handle_connection_ready(:ok, _component_id, _state), do: :ok
