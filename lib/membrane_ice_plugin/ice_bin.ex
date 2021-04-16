@@ -181,7 +181,7 @@ defmodule Membrane.ICE.Bin do
 
   @impl true
   def handle_prepared_to_stopped(_ctx, %{connector: connector} = state) do
-    Connector.clean_ice(connector)
+    Connector.reset(connector)
     {:ok, state}
   end
 
