@@ -10,7 +10,12 @@ defmodule Example.Receiver do
   def handle_init(_) do
     children = %{
       ice: %Membrane.ICE.Bin{
-        stun_servers: ["64.233.161.127:19302"],
+        stun_servers: [
+          %{
+            server_addr: {64, 233, 161, 127},
+            server_port: 19302
+          }
+        ],
         controlling_mode: false,
         handshake_module: Membrane.ICE.Handshake.Default
       },
@@ -28,6 +33,11 @@ defmodule Example.Receiver do
     }
 
     {{:ok, spec: spec}, %{}}
+  end
+
+  @impl true
+  def handle_prepared_to_playing(_ctx, state) do
+    {{:ok, forward: [ice: :gather_candidates]}, state}
   end
 
   @impl true
