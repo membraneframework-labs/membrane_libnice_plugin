@@ -11,7 +11,12 @@ defmodule Example.Sender do
     children = %{
       ice: %Membrane.ICE.Bin{
         stream_name: "video",
-        stun_servers: ["64.233.161.127:19302"],
+        stun_servers: [
+          %{
+            server_addr: {64, 233, 161, 127},
+            server_port: 19302
+          }
+        ],
         controlling_mode: true,
         handshake_module: Membrane.ICE.Handshake.Default
       },
@@ -29,6 +34,11 @@ defmodule Example.Sender do
     }
 
     {{:ok, spec: spec}, %{}}
+  end
+
+  @impl true
+  def handle_prepared_to_playing(_ctx, state) do
+    {{:ok, forward: [ice: :gather_candidates]}, state}
   end
 
   @impl true

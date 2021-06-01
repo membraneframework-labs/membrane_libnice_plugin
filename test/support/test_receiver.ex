@@ -31,4 +31,9 @@ defmodule Membrane.ICE.Support.TestReceiver do
 
     {{:ok, spec: spec}, %{}}
   end
+
+  @impl true
+  def handle_prepared_to_playing(_ctx, state) do
+    {{:ok, forward: [ice: :gather_candidates]}, state}
+  end
 end

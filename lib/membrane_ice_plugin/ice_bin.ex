@@ -30,6 +30,8 @@ defmodule Membrane.ICE.Bin do
   ### Messages API
   You can send following messages to ICE Bin:
 
+  - `:gather_candidates`
+
   - `{:set_remote_credentials, credentials}` - credentials are string in form of "ufrag passwd"
 
   - `{:set_remote_candidate, candidate, component_id}` - candidate is a string in form of
@@ -41,10 +43,10 @@ defmodule Membrane.ICE.Bin do
 
   ### Notifications API
   - `{:new_candidate_full, candidate}`
-    Triggered by: starting pipeline i.e. `YourPipeline.play(pid)`
+    Triggered by: `:gather_candidates`
 
   - `:candidate_gathering_done`
-  Triggered by: starting pipeline i.e. `YourPipeline.play(pid)`
+    Triggered by: `:gather_candidates`
 
   - `{:new_remote_candidate_full, candidate}`
     Triggered by: `{:set_remote_candidate, candidate, component_id}` or `{:parse_remote_sdp, sdp}`
@@ -182,6 +184,12 @@ defmodule Membrane.ICE.Bin do
   @impl true
   def handle_prepared_to_stopped(_ctx, %{connector: connector} = state) do
     Connector.reset(connector)
+    {:ok, state}
+  end
+
+  @impl true
+  def handle_other(:gather_candidates, _ctx, %{connector: connector} = state) do
+    Connector.gather_candidates(connector)
     {:ok, state}
   end
 

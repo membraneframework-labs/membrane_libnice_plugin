@@ -65,6 +65,11 @@ defmodule Membrane.ICE.Connector do
     GenServer.call(pid, :run)
   end
 
+  @spec gather_candidates(connector :: pid()) :: :ok
+  def gather_candidates(pid) do
+    GenServer.cast(pid, :gather_candidates)
+  end
+
   @spec generate_local_sdp(connector :: pid()) :: {:ok, local_sdp :: String.t()}
   def generate_local_sdp(pid) do
     GenServer.call(pid, :generate_local_sdp)
@@ -139,8 +144,7 @@ defmodule Membrane.ICE.Connector do
     with {:ok, hsk_init_data, %State{stream_id: stream_id} = state} <-
            add_stream(state),
          :ok <- ExLibnice.set_relay_info(ice, stream_id, :all, state.turn_servers),
-         {:ok, credentials} <- ExLibnice.get_local_credentials(ice, stream_id),
-         :ok <- ExLibnice.gather_candidates(ice, stream_id) do
+         {:ok, credentials} <- ExLibnice.get_local_credentials(ice, stream_id) do
       {:reply, {:ok, hsk_init_data, credentials}, state}
     else
       {:error, cause} -> {:stop, {:error, cause}, state}
@@ -206,6 +210,12 @@ defmodule Membrane.ICE.Connector do
   def handle_call(:reset, _from, %State{ice: ice, stream_id: stream_id} = state) do
     ExLibnice.remove_stream(ice, stream_id)
     {:reply, :ok, state}
+  end
+
+  @impl true
+  def handle_cast(:gather_candidates, %State{ice: ice, stream_id: stream_id} = state) do
+    ExLibnice.gather_candidates(ice, stream_id)
+    {:noreply, state}
   end
 
   @impl true
