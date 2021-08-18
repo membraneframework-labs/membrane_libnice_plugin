@@ -242,8 +242,12 @@ defmodule Membrane.ICE.Connector do
   end
 
   @impl true
-  def handle_info({:component_state_failed, _stream_id, component_id}, state) do
+  def handle_info(
+        {:component_state_failed, _stream_id, component_id},
+        %State{parent: parent} = state
+      ) do
     Membrane.Logger.warn("Component #{component_id} state FAILED")
+    send(parent, :ice_failed)
     {:noreply, state}
   end
 

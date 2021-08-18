@@ -102,6 +102,12 @@ defmodule Membrane.ICE.Bin do
                 default: [],
                 description:
                   "Options for handshake module. They will be passed to init function of hsk_module"
+              ],
+              log_metadata: [
+                spec: :list,
+                spec: Keyword.t(),
+                default: [],
+                description: "Logger metadata used for endpoint bin and all its descendants"
               ]
 
   def_input_pad :input,
@@ -152,7 +158,7 @@ defmodule Membrane.ICE.Bin do
       children: children
     }
 
-    {{:ok, spec: spec}, %{:connector => connector}}
+    {{:ok, spec: spec, log_metadata: options.log_metadata}, %{:connector => connector}}
   end
 
   @impl true

@@ -16,17 +16,24 @@ defmodule Membrane.ICE.Sink do
                 description: "Pid of ExLibnice instance. It's needed to send packets out."
               ]
 
-  def_input_pad :input,
+  def_input_pad(:input,
     availability: :on_request,
     caps: :any,
     mode: :pull,
     demand_unit: :buffers
+  )
 
   @impl true
   def handle_init(options) do
     %__MODULE__{ice: ice} = options
 
-    {:ok, %{:ice => ice, :ready_components => MapSet.new(), :finished_hsk => %{}}}
+    {:ok,
+     %{
+       :ice => ice,
+       :ready_components => MapSet.new(),
+       :finished_hsk => %{},
+       again_ready?: false
+     }}
   end
 
   @impl true
@@ -73,6 +80,7 @@ defmodule Membrane.ICE.Sink do
 
   @impl true
   def handle_other({:component_state_ready, stream_id, component_id}, ctx, state) do
+    Membrane.Logger.info("Component state ready")
     state = Map.put(state, :stream_id, stream_id)
     state = %{state | ready_components: MapSet.put(state.ready_components, component_id)}
     maybe_send_demands(component_id, ctx, state)
@@ -87,13 +95,33 @@ defmodule Membrane.ICE.Sink do
   defp maybe_send_demands(component_id, ctx, state) do
     pad = Pad.ref(:input, component_id)
     # if something is linked, component is ready and handshake is done then send demands
+    Membrane.Logger.info(
+      "Handshake pass: #{inspect(Map.has_key?(state.finished_hsk, component_id))}"
+    )
+
     if Map.has_key?(ctx.pads, pad) and MapSet.member?(state.ready_components, component_id) and
          Map.has_key?(state.finished_hsk, component_id) do
       hsk_data = Map.get(state.finished_hsk, component_id)
-      actions = [demand: pad, event: {pad, %Handshake.Event{handshake_data: hsk_data}}]
+
+      actions =
+        [demand: pad, event: {pad, %Handshake.Event{handshake_data: hsk_data}}] ++
+          [notify: :ice_ready]
+
+      state = %{state | again_ready?: false}
       {{:ok, actions}, state}
     else
-      {:ok, state}
+      if state.again_ready? do
+        state = %{state | again_ready?: false}
+        Membrane.Logger.info("Restart #{inspect(self)}")
+        {{:ok, [notify: :ice_failed]}, state}
+      else
+        state =
+          if MapSet.member?(state.ready_components, component_id),
+            do: %{state | again_ready?: true},
+            else: state
+
+        {:ok, state}
+      end
     end
   end
 end
