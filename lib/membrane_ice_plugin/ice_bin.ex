@@ -107,7 +107,7 @@ defmodule Membrane.ICE.Bin do
                 spec: :list,
                 spec: Keyword.t(),
                 default: [],
-                description: "Logger metadata used for endpoint bin and all its descendants"
+                description: "Logger metadata used for ice bin and all its descendants"
               ]
 
   def_input_pad :input,

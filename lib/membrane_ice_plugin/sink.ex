@@ -80,7 +80,6 @@ defmodule Membrane.ICE.Sink do
 
   @impl true
   def handle_other({:component_state_ready, stream_id, component_id}, ctx, state) do
-    Membrane.Logger.info("Component state ready")
     state = Map.put(state, :stream_id, stream_id)
     state = %{state | ready_components: MapSet.put(state.ready_components, component_id)}
     maybe_send_demands(component_id, ctx, state)
@@ -95,10 +94,6 @@ defmodule Membrane.ICE.Sink do
   defp maybe_send_demands(component_id, ctx, state) do
     pad = Pad.ref(:input, component_id)
     # if something is linked, component is ready and handshake is done then send demands
-    Membrane.Logger.info(
-      "Handshake pass: #{inspect(Map.has_key?(state.finished_hsk, component_id))}"
-    )
-
     if Map.has_key?(ctx.pads, pad) and MapSet.member?(state.ready_components, component_id) and
          Map.has_key?(state.finished_hsk, component_id) do
       hsk_data = Map.get(state.finished_hsk, component_id)
@@ -112,7 +107,6 @@ defmodule Membrane.ICE.Sink do
     else
       if state.again_ready? do
         state = %{state | again_ready?: false}
-        Membrane.Logger.info("Restart #{inspect(self)}")
         {{:ok, [notify: :ice_failed]}, state}
       else
         state =
