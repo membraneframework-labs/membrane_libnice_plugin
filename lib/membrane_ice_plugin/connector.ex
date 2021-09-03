@@ -290,8 +290,9 @@ defmodule Membrane.ICE.Connector do
   end
 
   @impl true
-  def handle_info({:retransmit, component_id, packets}, state) do
-    ExLibnice.send_payload(state.ice, state.stream_id, component_id, packets)
+  def handle_info({:retransmit, _from, packets}, state) do
+    # TODO: Change hardcoded 1 to component_id dependent on from who :retransmit come from
+    ExLibnice.send_payload(state.ice, state.stream_id, 1, packets)
     {:noreply, state}
   end
 
