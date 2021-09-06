@@ -82,6 +82,7 @@ defmodule Membrane.ICE.Sink do
   def handle_other({:component_state_ready, stream_id, component_id}, ctx, state) do
     state = Map.put(state, :stream_id, stream_id)
     state = %{state | ready_components: MapSet.put(state.ready_components, component_id)}
+
     maybe_send_demands(component_id, ctx, state)
   end
 
@@ -98,24 +99,16 @@ defmodule Membrane.ICE.Sink do
          Map.has_key?(state.finished_hsk, component_id) do
       hsk_data = Map.get(state.finished_hsk, component_id)
 
-      actions =
-        [demand: pad, event: {pad, %Handshake.Event{handshake_data: hsk_data}}] ++
-          [notify: :ice_ready]
+      actions = [
+        demand: pad,
+        event: {pad, %Handshake.Event{handshake_data: hsk_data}},
+        notify: :connection_ready
+      ]
 
       state = %{state | again_ready?: false}
       {{:ok, actions}, state}
     else
-      if state.again_ready? do
-        state = %{state | again_ready?: false}
-        {{:ok, [notify: :ice_failed]}, state}
-      else
-        state =
-          if MapSet.member?(state.ready_components, component_id),
-            do: %{state | again_ready?: true},
-            else: state
-
-        {:ok, state}
-      end
+      {:ok, state}
     end
   end
 end

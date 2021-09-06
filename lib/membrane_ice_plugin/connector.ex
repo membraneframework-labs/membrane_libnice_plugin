@@ -242,12 +242,9 @@ defmodule Membrane.ICE.Connector do
   end
 
   @impl true
-  def handle_info(
-        {:component_state_failed, _stream_id, component_id},
-        %State{parent: parent} = state
-      ) do
+  def handle_info({:component_state_failed, stream_id, component_id}, state) do
     Membrane.Logger.warn("Component #{component_id} state FAILED")
-    send(parent, :ice_failed)
+    send(state.parent, {:component_state_failed, stream_id, component_id})
     {:noreply, state}
   end
 
@@ -290,9 +287,12 @@ defmodule Membrane.ICE.Connector do
   end
 
   @impl true
-  def handle_info({:retransmit, _from, packets}, state) do
-    # TODO: Change hardcoded 1 to component_id dependent on from who :retransmit come from
-    ExLibnice.send_payload(state.ice, state.stream_id, 1, packets)
+  def handle_info({:retransmit, from, packets}, state) do
+    for {component_id, {%{dtls: dtls_pid}, _hsk_status, _hsk_data}} <- state.handshakes,
+        dtls_pid == from do
+      ExLibnice.send_payload(state.ice, state.stream_id, component_id, packets)
+    end
+
     {:noreply, state}
   end
 

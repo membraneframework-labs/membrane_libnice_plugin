@@ -158,7 +158,7 @@ defmodule Membrane.ICE.Bin do
       children: children
     }
 
-    {{:ok, spec: spec, log_metadata: options.log_metadata}, %{:connector => connector}}
+    {{:ok, spec: spec}, %{:connector => connector}}
   end
 
   @impl true
@@ -240,6 +240,10 @@ defmodule Membrane.ICE.Bin do
   @impl true
   def handle_other({:component_state_ready, _stream_id, _component_id} = msg, _ctx, state),
     do: {{:ok, forward: {:ice_sink, msg}}, state}
+
+  @impl true
+  def handle_other({:component_state_failed, _stream_id, _component_id}, _ctx, state),
+    do: {{:ok, notify: :connection_failed}, state}
 
   @impl true
   def handle_other({:hsk_finished, _component_id, _hsk_data} = msg, _ctx, state),
