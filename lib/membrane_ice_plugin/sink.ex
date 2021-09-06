@@ -16,12 +16,11 @@ defmodule Membrane.ICE.Sink do
                 description: "Pid of ExLibnice instance. It's needed to send packets out."
               ]
 
-  def_input_pad(:input,
+  def_input_pad :input,
     availability: :on_request,
     caps: :any,
     mode: :pull,
     demand_unit: :buffers
-  )
 
   @impl true
   def handle_init(options) do
@@ -29,9 +28,9 @@ defmodule Membrane.ICE.Sink do
 
     {:ok,
      %{
-       :ice => ice,
-       :ready_components => MapSet.new(),
-       :finished_hsk => %{},
+       ice: ice,
+       ready_components: MapSet.new(),
+       finished_hsk: %{},
        again_ready?: false
      }}
   end
