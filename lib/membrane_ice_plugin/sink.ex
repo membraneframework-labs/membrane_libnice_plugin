@@ -31,7 +31,7 @@ defmodule Membrane.ICE.Sink do
        ice: ice,
        ready_components: MapSet.new(),
        finished_hsk: %{},
-       again_ready?: false
+       invalid_state_detector?: false
      }}
   end
 
@@ -101,13 +101,27 @@ defmodule Membrane.ICE.Sink do
       actions = [
         demand: pad,
         event: {pad, %Handshake.Event{handshake_data: hsk_data}},
-        notify: :connection_ready
+        notify: {:sink_ready, state.stream_id, component_id}
       ]
 
-      state = %{state | again_ready?: false}
+      state = %{state | invalid_state_detector?: false}
       {{:ok, actions}, state}
     else
-      {:ok, state}
+      # Detecting state, when dtls handshake didn't finish yet, but we get :component_state_ready notification second time.
+      # This can lead to strange bugs like don't sending media even though the ice state is connected.
+      # TODO: Find out why this strange bugs occurs and why component send multiple notification :component_state_ready, then if possible remove this workaround.
+
+      if state.invalid_state_detector? do
+        state = %{state | invalid_state_detector?: false}
+        {{:ok, notify: {:component_state_failed, state.stream_id, component_id}}, state}
+      else
+        state =
+          if MapSet.member?(state.ready_components, component_id),
+            do: %{state | invalid_state_detector?: true},
+            else: state
+
+        {:ok, state}
+      end
     end
   end
 end

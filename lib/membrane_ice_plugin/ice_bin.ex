@@ -263,6 +263,27 @@ defmodule Membrane.ICE.Bin do
   def handle_other(msg, _ctx, state), do: {{:ok, notify: msg}, state}
 
   @impl true
+  def handle_notification(
+        {:sink_ready, _stream_id, _component_id},
+        _from,
+        _ctx,
+        state
+      ),
+      do: {{:ok, notify: :connection_ready}, state}
+
+  @impl true
+  def handle_notification(
+        {:component_state_failed, _stream_id, _component_id},
+        _from,
+        _ctx,
+        state
+      ),
+      do: {{:ok, notify: :connection_failed}, state}
+
+  @impl true
+  def handle_notification(msg, _from, _ctx, state), do: {{:ok, notify: msg}, state}
+
+  @impl true
   def handle_shutdown(_reason, %{connector: connector}) do
     GenServer.stop(connector)
   end
