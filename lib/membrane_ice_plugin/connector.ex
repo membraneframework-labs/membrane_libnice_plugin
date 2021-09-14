@@ -202,7 +202,7 @@ defmodule Membrane.ICE.Connector do
          :ok <- ExLibnice.gather_candidates(ice, stream_id) do
       {:reply, {:ok, credentials}, state}
     else
-      {:error, cause} -> {:stop, {:error, cause}, state}
+      {:error, cause} -> {:reply, {:error, cause}, state}
     end
   end
 
@@ -254,24 +254,29 @@ defmodule Membrane.ICE.Connector do
 
     {hsk_state, hsk_status, _hsk_data} = Map.get(state.handshakes, component_id)
 
-    state = %{state | connections: MapSet.put(state.connections, component_id)}
+    if MapSet.member?(state.connections, component_id) and hsk_status != :finished do
+      send(state.parent, {:component_state_failed, stream_id, component_id})
+      {:noreply, state}
+    else
+      state = %{state | connections: MapSet.put(state.connections, component_id)}
 
-    if hsk_status != :finished do
-      Membrane.Logger.debug("Checking for cached handshake packets")
-      {cached_packets, state} = pop_in(state.cached_hsk_packets[component_id])
+      if hsk_status != :finished do
+        Membrane.Logger.debug("Checking for cached handshake packets")
+        {cached_packets, state} = pop_in(state.cached_hsk_packets[component_id])
 
-      if cached_packets == nil do
-        Membrane.Logger.debug("Nothing to be sent for component: #{component_id}")
-      else
-        Membrane.Logger.debug("Sending cached handshake packets for component: #{component_id}")
-        ExLibnice.send_payload(state.ice, stream_id, component_id, cached_packets)
+        if cached_packets == nil do
+          Membrane.Logger.debug("Nothing to be sent for component: #{component_id}")
+        else
+          Membrane.Logger.debug("Sending cached handshake packets for component: #{component_id}")
+          ExLibnice.send_payload(state.ice, stream_id, component_id, cached_packets)
+        end
+
+        handle_connection_ready(state.hsk_module.connection_ready(hsk_state), component_id, state)
       end
 
-      handle_connection_ready(state.hsk_module.connection_ready(hsk_state), component_id, state)
+      send(state.parent, {:component_state_ready, stream_id, component_id})
+      {:noreply, state}
     end
-
-    send(state.parent, {:component_state_ready, stream_id, component_id})
-    {:noreply, state}
   end
 
   @impl true

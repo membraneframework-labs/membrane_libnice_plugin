@@ -227,8 +227,10 @@ defmodule Membrane.ICE.Bin do
 
   @impl true
   def handle_other(:restart_stream, _ctx, %{connector: connector} = state) do
-    {:ok, credentials} = Connector.restart_stream(connector)
-    {{:ok, notify: {:local_credentials, credentials}}, state}
+    case Connector.restart_stream(connector) do
+      {:ok, credentials} -> {{:ok, notify: {:local_credentials, credentials}}, state}
+      {:error, _cause} = msg -> {{:ok, notify: msg}, state}
+    end
   end
 
   @impl true
