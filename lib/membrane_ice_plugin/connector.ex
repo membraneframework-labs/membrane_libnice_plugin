@@ -272,6 +272,8 @@ defmodule Membrane.ICE.Connector do
         end
 
         handle_connection_ready(state.hsk_module.connection_ready(hsk_state), component_id, state)
+      else
+        send(state.parent, {:connection_ready, stream_id, component_id})
       end
 
       send(state.parent, {:component_state_ready, stream_id, component_id})
@@ -355,6 +357,11 @@ defmodule Membrane.ICE.Connector do
     {hsk_state, _hsk_status, _hsk_data} = Map.get(state.handshakes, component_id)
     state = put_in(state.handshakes[component_id], {hsk_state, :finished, hsk_data})
     send(state.parent, {:hsk_finished, component_id, hsk_data})
+
+    if MapSet.member?(state.connections, component_id) do
+      send(state.parent, {:connection_ready, state.stream_id, component_id})
+    end
+
     {:noreply, state}
   end
 

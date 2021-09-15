@@ -228,8 +228,12 @@ defmodule Membrane.ICE.Bin do
   @impl true
   def handle_other(:restart_stream, _ctx, %{connector: connector} = state) do
     case Connector.restart_stream(connector) do
-      {:ok, credentials} -> {{:ok, notify: {:local_credentials, credentials}}, state}
-      {:error, _cause} = msg -> {{:ok, notify: msg}, state}
+      {:ok, credentials} ->
+        {{:ok, notify: {:local_credentials, credentials}}, state}
+
+      {:error, cause} ->
+        Membrane.Logger.debug("Stream restart failed, because: #{cause}")
+        {:ok, state}
     end
   end
 
@@ -244,8 +248,8 @@ defmodule Membrane.ICE.Bin do
     do: {{:ok, forward: {:ice_sink, msg}}, state}
 
   @impl true
-  def handle_other({:component_state_failed, _stream_id, _component_id}, _ctx, state),
-    do: {{:ok, notify: :connection_failed}, state}
+  def handle_other({:component_state_failed, stream_id, component_id}, _ctx, state),
+    do: {{:ok, notify: {:connection_failed, stream_id, component_id}}, state}
 
   @impl true
   def handle_other({:hsk_finished, _component_id, _hsk_data} = msg, _ctx, state),
@@ -266,21 +270,21 @@ defmodule Membrane.ICE.Bin do
 
   @impl true
   def handle_notification(
-        {:sink_ready, _stream_id, _component_id},
+        {:connection_ready, _stream_id, _component_id} = msg,
         _from,
         _ctx,
         state
       ),
-      do: {{:ok, notify: :connection_ready}, state}
+      do: {{:ok, notify: msg}, state}
 
   @impl true
   def handle_notification(
-        {:component_state_failed, _stream_id, _component_id},
+        {:component_state_failed, stream_id, component_id},
         _from,
         _ctx,
         state
       ),
-      do: {{:ok, notify: :connection_failed}, state}
+      do: {{:ok, notify: {:connection_failed, stream_id, component_id}}, state}
 
   @impl true
   def handle_notification(msg, _from, _ctx, state), do: {{:ok, notify: msg}, state}

@@ -99,8 +99,7 @@ defmodule Membrane.ICE.Sink do
 
       actions = [
         demand: pad,
-        event: {pad, %Handshake.Event{handshake_data: hsk_data}},
-        notify: {:sink_ready, state.stream_id, component_id}
+        event: {pad, %Handshake.Event{handshake_data: hsk_data}}
       ]
 
       {{:ok, actions}, state}
