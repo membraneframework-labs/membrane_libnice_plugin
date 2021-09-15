@@ -102,6 +102,12 @@ defmodule Membrane.ICE.Bin do
                 default: [],
                 description:
                   "Options for handshake module. They will be passed to init function of hsk_module"
+              ],
+              log_metadata: [
+                spec: :list,
+                spec: Keyword.t(),
+                default: [],
+                description: "Logger metadata used for ice bin and all its descendants"
               ]
 
   def_input_pad :input,
@@ -221,8 +227,14 @@ defmodule Membrane.ICE.Bin do
 
   @impl true
   def handle_other(:restart_stream, _ctx, %{connector: connector} = state) do
-    {:ok, credentials} = Connector.restart_stream(connector)
-    {{:ok, notify: {:local_credentials, credentials}}, state}
+    case Connector.restart_stream(connector) do
+      {:ok, credentials} ->
+        {{:ok, notify: {:local_credentials, credentials}}, state}
+
+      {:error, cause} ->
+        Membrane.Logger.debug("Stream restart failed, because: #{cause}")
+        {:ok, state}
+    end
   end
 
   @impl true
@@ -234,6 +246,10 @@ defmodule Membrane.ICE.Bin do
   @impl true
   def handle_other({:component_state_ready, _stream_id, _component_id} = msg, _ctx, state),
     do: {{:ok, forward: {:ice_sink, msg}}, state}
+
+  @impl true
+  def handle_other({:component_state_failed, stream_id, component_id}, _ctx, state),
+    do: {{:ok, notify: {:connection_failed, stream_id, component_id}}, state}
 
   @impl true
   def handle_other({:hsk_finished, _component_id, _hsk_data} = msg, _ctx, state),
@@ -251,6 +267,27 @@ defmodule Membrane.ICE.Bin do
 
   @impl true
   def handle_other(msg, _ctx, state), do: {{:ok, notify: msg}, state}
+
+  @impl true
+  def handle_notification(
+        {:connection_ready, _stream_id, _component_id} = msg,
+        _from,
+        _ctx,
+        state
+      ),
+      do: {{:ok, notify: msg}, state}
+
+  @impl true
+  def handle_notification(
+        {:component_state_failed, stream_id, component_id},
+        _from,
+        _ctx,
+        state
+      ),
+      do: {{:ok, notify: {:connection_failed, stream_id, component_id}}, state}
+
+  @impl true
+  def handle_notification(msg, _from, _ctx, state), do: {{:ok, notify: msg}, state}
 
   @impl true
   def handle_shutdown(_reason, %{connector: connector}) do

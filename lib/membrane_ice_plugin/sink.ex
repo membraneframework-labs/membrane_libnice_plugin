@@ -26,7 +26,12 @@ defmodule Membrane.ICE.Sink do
   def handle_init(options) do
     %__MODULE__{ice: ice} = options
 
-    {:ok, %{:ice => ice, :ready_components => MapSet.new(), :finished_hsk => %{}}}
+    {:ok,
+     %{
+       ice: ice,
+       ready_components: MapSet.new(),
+       finished_hsk: %{}
+     }}
   end
 
   @impl true
@@ -75,6 +80,7 @@ defmodule Membrane.ICE.Sink do
   def handle_other({:component_state_ready, stream_id, component_id}, ctx, state) do
     state = Map.put(state, :stream_id, stream_id)
     state = %{state | ready_components: MapSet.put(state.ready_components, component_id)}
+
     maybe_send_demands(component_id, ctx, state)
   end
 
@@ -90,7 +96,12 @@ defmodule Membrane.ICE.Sink do
     if Map.has_key?(ctx.pads, pad) and MapSet.member?(state.ready_components, component_id) and
          Map.has_key?(state.finished_hsk, component_id) do
       hsk_data = Map.get(state.finished_hsk, component_id)
-      actions = [demand: pad, event: {pad, %Handshake.Event{handshake_data: hsk_data}}]
+
+      actions = [
+        demand: pad,
+        event: {pad, %Handshake.Event{handshake_data: hsk_data}}
+      ]
+
       {{:ok, actions}, state}
     else
       {:ok, state}
