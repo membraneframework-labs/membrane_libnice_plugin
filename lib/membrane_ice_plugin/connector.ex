@@ -260,7 +260,9 @@ defmodule Membrane.ICE.Connector do
     else
       state = %{state | connections: MapSet.put(state.connections, component_id)}
 
-      if hsk_status != :finished do
+      if hsk_status == :finished do
+        send(state.parent, {:connection_ready, stream_id, component_id})
+      else
         Membrane.Logger.debug("Checking for cached handshake packets")
         {cached_packets, state} = pop_in(state.cached_hsk_packets[component_id])
 
@@ -272,8 +274,6 @@ defmodule Membrane.ICE.Connector do
         end
 
         handle_connection_ready(state.hsk_module.connection_ready(hsk_state), component_id, state)
-      else
-        send(state.parent, {:connection_ready, stream_id, component_id})
       end
 
       send(state.parent, {:component_state_ready, stream_id, component_id})
