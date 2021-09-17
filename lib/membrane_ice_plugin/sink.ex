@@ -26,7 +26,13 @@ defmodule Membrane.ICE.Sink do
   def handle_init(options) do
     %__MODULE__{ice: ice} = options
 
-    {:ok, %{:ice => ice, :ready_components => MapSet.new(), :finished_hsk => %{}}}
+    {:ok,
+     %{
+       ice: ice,
+       ready_components: MapSet.new(),
+       finished_hsk: %{},
+       component_id_to_turn_port: %{}
+     }}
   end
 
   @impl true
@@ -56,12 +62,23 @@ defmodule Membrane.ICE.Sink do
         %{playback_state: :playing},
         %{ice: ice, stream_id: stream_id} = state
       ) do
-    case ExLibnice.send_payload(ice, stream_id, component_id, payload) do
-      :ok ->
-        {{:ok, demand: pad}, state}
+    <<payload_first_byte, _tail::binary>> = payload
 
-      {:error, cause} ->
-        {{:ok, notify: {:could_not_send_payload, cause}}, state}
+    if state[:turn_pid] != nil and payload_first_byte in [144, 128] do
+      send(
+        state[:turn_pid],
+        {:ice_payload, payload, state.component_id_to_turn_port[component_id]}
+      )
+
+      {{:ok, demand: pad}, state}
+    else
+      case ExLibnice.send_payload(ice, stream_id, component_id, payload) do
+        :ok ->
+          {{:ok, demand: pad}, state}
+
+        {:error, cause} ->
+          {{:ok, notify: {:could_not_send_payload, cause}}, state}
+      end
     end
   end
 
@@ -72,9 +89,14 @@ defmodule Membrane.ICE.Sink do
   end
 
   @impl true
-  def handle_other({:component_state_ready, stream_id, component_id}, ctx, state) do
-    state = Map.put(state, :stream_id, stream_id)
-    state = %{state | ready_components: MapSet.put(state.ready_components, component_id)}
+  def handle_other({:component_state_ready, stream_id, component_id, port}, ctx, state) do
+    state =
+      Map.merge(state, %{
+        stream_id: stream_id,
+        ready_components: MapSet.put(state.ready_components, component_id),
+        component_id_to_turn_port: Map.put(state.component_id_to_turn_port, component_id, port)
+      })
+
     maybe_send_demands(component_id, ctx, state)
   end
 
@@ -82,6 +104,11 @@ defmodule Membrane.ICE.Sink do
   def handle_other({:hsk_finished, component_id, hsk_data}, ctx, state) do
     state = put_in(state.finished_hsk[component_id], hsk_data)
     maybe_send_demands(component_id, ctx, state)
+  end
+
+  def handle_other({:turn_server_started, turn_pid}, _ctx, state) do
+    state = Map.put(state, :turn_pid, turn_pid)
+    {:ok, state}
   end
 
   defp maybe_send_demands(component_id, ctx, state) do

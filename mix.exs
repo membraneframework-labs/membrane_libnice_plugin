@@ -38,7 +38,9 @@ defmodule Membrane.ICE.Plugin.Mixfile do
     [
       {:membrane_core, "~> 0.7.0"},
       {:bunch, "~> 1.3.0"},
-      {:ex_libnice, "~> 0.5.1"},
+      # {:ex_libnice, "~> 0.5.1"},
+      {:ex_libnice,
+       git: "git@github.com:membraneframework/ex_libnice.git", branch: "turn-api-in-rtc-engine"},
       {:membrane_funnel_plugin, "~> 0.2.0"},
       {:ex_doc, "~> 0.23", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
