@@ -62,23 +62,23 @@ defmodule Membrane.ICE.Sink do
         %{playback_state: :playing},
         %{ice: ice, stream_id: stream_id} = state
       ) do
-    <<payload_first_byte, _tail::binary>> = payload
-
-    if state[:turn_pid] != nil and payload_first_byte in [144, 128] do
+    with %{used_turn_pid: turn_pid} when is_pid(turn_pid) <- state,
+         <<first_byte, _tail::binary>> when first_byte in [144, 128] <- payload do
       send(
-        state[:turn_pid],
+        turn_pid,
         {:ice_payload, payload, state.component_id_to_turn_port[component_id]}
       )
 
       {{:ok, demand: pad}, state}
     else
-      case ExLibnice.send_payload(ice, stream_id, component_id, payload) do
-        :ok ->
-          {{:ok, demand: pad}, state}
+      _ ->
+        case ExLibnice.send_payload(ice, stream_id, component_id, payload) do
+          :ok ->
+            {{:ok, demand: pad}, state}
 
-        {:error, cause} ->
-          {{:ok, notify: {:could_not_send_payload, cause}}, state}
-      end
+          {:error, cause} ->
+            {{:ok, notify: {:could_not_send_payload, cause}}, state}
+        end
     end
   end
 
@@ -107,8 +107,21 @@ defmodule Membrane.ICE.Sink do
   end
 
   def handle_other({:turn_server_started, turn_pid}, _ctx, state) do
-    state = Map.put(state, :turn_pid, turn_pid)
+    # TODO: terminate unused TURNs after every ICE restart
+
+    state =
+      Map.update(
+        state,
+        :turn_pids,
+        [turn_pid],
+        &[turn_pid | &1]
+      )
+
     {:ok, state}
+  end
+
+  def handle_other({:used_turn_pid, used_turn_pid}, _ctx, state) do
+    {:ok, Map.put(state, :used_turn_pid, used_turn_pid)}
   end
 
   defp maybe_send_demands(component_id, ctx, state) do

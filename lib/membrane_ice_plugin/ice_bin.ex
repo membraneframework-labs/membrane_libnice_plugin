@@ -153,11 +153,8 @@ defmodule Membrane.ICE.Bin do
     }
 
     Enum.each(turn_servers, fn
-      %{pid: pid} ->
-        send(pid, {:ice_bin_pid, self()})
-
-      _else ->
-        :pass
+      %{pid: turn_pid} ->
+        send(turn_pid, {:ice_bin_pid, self()})
     end)
 
     {{:ok, spec: spec}, %{:connector => connector}}
@@ -244,19 +241,6 @@ defmodule Membrane.ICE.Bin do
     {{:ok, forward: {:ice_sink, msg}}, state}
   end
 
-  def handle_other({:turn_server_started, turn_pid, _stun_pid}, _ctx, state) do
-    state =
-      Map.update(
-        state,
-        :turn_pids,
-        [turn_pid],
-        &[turn_pid | &1]
-      )
-
-    actions = [forward: {:ice_sink, {:turn_server_started, turn_pid}}]
-    {{:ok, actions}, state}
-  end
-
   def handle_other({:libnice_sending_addr_estabilished, _turn_pid} = msg, _ctx, state) do
     {{:ok, forward: {:ice_sink, msg}}, state}
   end
@@ -273,6 +257,11 @@ defmodule Membrane.ICE.Bin do
       Membrane.Logger.warn("No links for component: #{component_id}. Ignoring incoming message.")
       {:ok, state}
     end
+  end
+
+  @impl true
+  def handle_other({:used_turn_pid, _used_turn_pid} = msg, _ctx, state) do
+    {{:ok, forward: {:ice_sink, msg}}, state}
   end
 
   @impl true

@@ -143,7 +143,7 @@ defmodule Membrane.ICE.Connector do
   def handle_call(:run, _from, %State{ice: ice} = state) do
     with {:ok, hsk_init_data, %State{stream_id: stream_id} = state} <-
            add_stream(state),
-         :ok <- ExLibnice.set_relay_info(ice, stream_id, :all, state.turn_servers),
+         :ok <- ExLibnice.set_relay_info(ice, stream_id, :all, []),
          {:ok, credentials} <- ExLibnice.get_local_credentials(ice, stream_id) do
       {:reply, {:ok, hsk_init_data, credentials}, state}
     else
