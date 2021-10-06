@@ -102,12 +102,6 @@ defmodule Membrane.ICE.Bin do
                 default: [],
                 description:
                   "Options for handshake module. They will be passed to init function of hsk_module"
-              ],
-              log_metadata: [
-                spec: :list,
-                spec: Keyword.t(),
-                default: [],
-                description: "Logger metadata used for ice bin and all its descendants"
               ]
 
   def_input_pad :input,
