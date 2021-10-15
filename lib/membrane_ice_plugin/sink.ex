@@ -96,7 +96,6 @@ defmodule Membrane.ICE.Sink do
         ready_components: MapSet.put(state.ready_components, component_id),
         component_id_to_turn_port: Map.put(state.component_id_to_turn_port, component_id, port)
       })
-
     maybe_send_demands(component_id, ctx, state)
   end
 
@@ -130,7 +129,12 @@ defmodule Membrane.ICE.Sink do
     if Map.has_key?(ctx.pads, pad) and MapSet.member?(state.ready_components, component_id) and
          Map.has_key?(state.finished_hsk, component_id) do
       hsk_data = Map.get(state.finished_hsk, component_id)
-      actions = [demand: pad, event: {pad, %Handshake.Event{handshake_data: hsk_data}}]
+
+      actions = [
+        demand: pad,
+        event: {pad, %Handshake.Event{handshake_data: hsk_data}}
+      ]
+
       {{:ok, actions}, state}
     else
       {:ok, state}

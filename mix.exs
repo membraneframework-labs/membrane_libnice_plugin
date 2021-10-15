@@ -1,7 +1,7 @@
 defmodule Membrane.ICE.Plugin.Mixfile do
   use Mix.Project
 
-  @version "0.6.0"
+  @version "0.7.0"
   @github_url "https://github.com/membraneframework/membrane_ice_plugin"
 
   def project do
@@ -41,6 +41,7 @@ defmodule Membrane.ICE.Plugin.Mixfile do
       # {:ex_libnice, "~> 0.5.1"},
       {:ex_libnice,
        git: "git@github.com:membraneframework/ex_libnice.git", branch: "turn-api-in-rtc-engine"},
+      # {:ex_libnice, "~> 0.6.0"},
       {:membrane_funnel_plugin, "~> 0.2.0"},
       {:ex_doc, "~> 0.23", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
