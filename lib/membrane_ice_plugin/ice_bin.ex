@@ -152,6 +152,11 @@ defmodule Membrane.ICE.Bin do
       children: children
     }
 
+    Enum.each(turn_servers, fn
+      %{pid: turn_pid} ->
+        send(turn_pid, {:ice_bin_pid, self()})
+    end)
+
     {{:ok, spec: spec}, %{:connector => connector}}
   end
 
@@ -238,12 +243,26 @@ defmodule Membrane.ICE.Bin do
   end
 
   @impl true
-  def handle_other({:component_state_ready, _stream_id, _component_id} = msg, _ctx, state),
-    do: {{:ok, forward: {:ice_sink, msg}}, state}
-
-  @impl true
   def handle_other({:component_state_failed, stream_id, component_id}, _ctx, state),
     do: {{:ok, notify: {:connection_failed, stream_id, component_id}}, state}
+
+  def handle_other({:component_state_ready, _stream_id, _component_id, _port} = msg, _ctx, state) do
+    {{:ok, forward: {:ice_sink, msg}}, state}
+  end
+
+  def handle_other({:libnice_sending_addr_estabilished, _turn_pid} = msg, _ctx, state) do
+    {{:ok, forward: {:ice_sink, msg}}, state}
+  end
+
+  @impl true
+  def handle_other({:used_turn_pid, _used_turn_pid} = msg, _ctx, state) do
+    {{:ok, forward: {:ice_sink, msg}}, state}
+  end
+
+  @impl true
+  def handle_other({:ice_payload_from_turn, component_id, payload}, ctx, state) do
+    handle_other({:ice_payload, component_id, payload}, ctx, state)
+  end
 
   @impl true
   def handle_other({:hsk_finished, _component_id, _hsk_data} = msg, _ctx, state),

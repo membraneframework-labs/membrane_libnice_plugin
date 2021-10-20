@@ -143,7 +143,7 @@ defmodule Membrane.ICE.Connector do
   def handle_call(:run, _from, %State{ice: ice} = state) do
     with {:ok, hsk_init_data, %State{stream_id: stream_id} = state} <-
            add_stream(state),
-         :ok <- ExLibnice.set_relay_info(ice, stream_id, :all, state.turn_servers),
+         :ok <- ExLibnice.set_relay_info(ice, stream_id, :all, []),
          {:ok, credentials} <- ExLibnice.get_local_credentials(ice, stream_id) do
       {:reply, {:ok, hsk_init_data, credentials}, state}
     else
@@ -249,7 +249,7 @@ defmodule Membrane.ICE.Connector do
   end
 
   @impl true
-  def handle_info({:component_state_ready, stream_id, component_id}, state) do
+  def handle_info({:component_state_ready, stream_id, component_id, _port} = msg, state) do
     Membrane.Logger.debug("Component #{component_id} READY")
 
     {hsk_state, hsk_status, _hsk_data} = Map.get(state.handshakes, component_id)
@@ -276,7 +276,7 @@ defmodule Membrane.ICE.Connector do
         handle_connection_ready(state.hsk_module.connection_ready(hsk_state), component_id, state)
       end
 
-      send(state.parent, {:component_state_ready, stream_id, component_id})
+      send(state.parent, msg)
       {:noreply, state}
     end
   end
