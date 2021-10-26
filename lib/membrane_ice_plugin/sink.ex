@@ -30,8 +30,7 @@ defmodule Membrane.ICE.Sink do
      %{
        ice: ice,
        ready_components: MapSet.new(),
-       finished_hsk: %{},
-       component_id_to_turn_port: %{}
+       finished_hsk: %{}
      }}
   end
 
@@ -62,11 +61,10 @@ defmodule Membrane.ICE.Sink do
         %{playback_state: :playing},
         %{ice: ice, stream_id: stream_id} = state
       ) do
-    with %{used_turn_pid: turn_pid} when is_pid(turn_pid) <- state,
-         <<first_byte, _tail::binary>> when first_byte in [144, 128] <- payload do
+   with %{used_turn_pid: turn_pid} when is_pid(turn_pid) <- state do
       send(
         turn_pid,
-        {:ice_payload, payload, state.component_id_to_turn_port[component_id]}
+        {:ice_payload, payload}
       )
 
       {{:ok, demand: pad}, state}
@@ -89,12 +87,11 @@ defmodule Membrane.ICE.Sink do
   end
 
   @impl true
-  def handle_other({:component_state_ready, stream_id, component_id, port}, ctx, state) do
+  def handle_other({:component_state_ready, stream_id, component_id}, ctx, state) do
     state =
       Map.merge(state, %{
         stream_id: stream_id,
-        ready_components: MapSet.put(state.ready_components, component_id),
-        component_id_to_turn_port: Map.put(state.component_id_to_turn_port, component_id, port)
+        ready_components: MapSet.put(state.ready_components, component_id)
       })
 
     maybe_send_demands(component_id, ctx, state)

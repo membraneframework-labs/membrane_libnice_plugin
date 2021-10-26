@@ -249,7 +249,7 @@ defmodule Membrane.ICE.Connector do
   end
 
   @impl true
-  def handle_info({:component_state_ready, stream_id, component_id, _port} = msg, state) do
+  def handle_info({:component_state_ready, stream_id, component_id} = msg, state) do
     Membrane.Logger.debug("Component #{component_id} READY")
 
     {hsk_state, hsk_status, _hsk_data} = Map.get(state.handshakes, component_id)

@@ -154,7 +154,7 @@ defmodule Membrane.ICE.Bin do
 
     Enum.each(turn_servers, fn
       %{pid: turn_pid} ->
-        send(turn_pid, {:ice_bin_pid, self()})
+        send(turn_pid, {:ice_pids, self(), connector})
     end)
 
     {{:ok, spec: spec}, %{:connector => connector}}
@@ -246,7 +246,7 @@ defmodule Membrane.ICE.Bin do
   def handle_other({:component_state_failed, stream_id, component_id}, _ctx, state),
     do: {{:ok, notify: {:connection_failed, stream_id, component_id}}, state}
 
-  def handle_other({:component_state_ready, _stream_id, _component_id, _port} = msg, _ctx, state) do
+  def handle_other({:component_state_ready, _stream_id, _component_id} = msg, _ctx, state) do
     {{:ok, forward: {:ice_sink, msg}}, state}
   end
 
