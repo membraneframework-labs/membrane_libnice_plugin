@@ -102,6 +102,16 @@ defmodule Membrane.ICE.Bin do
                 default: [],
                 description:
                   "Options for handshake module. They will be passed to init function of hsk_module"
+              ],
+              use_integrated_turn: [
+                spec: binary(),
+                default: true,
+                description: "Indicator, if use integrated TURN"
+              ],
+              integrated_turns_pids: [
+                spec: [pid()],
+                default: [],
+                description: "Pids of running integrated TURN servers"
               ]
 
   def_input_pad :input,
@@ -122,6 +132,8 @@ defmodule Membrane.ICE.Bin do
       stream_name: stream_name,
       stun_servers: stun_servers,
       turn_servers: turn_servers,
+      use_integrated_turn: use_integrated_turn,
+      integrated_turns_pids: integrated_turns_pids,
       controlling_mode: controlling_mode,
       port_range: port_range,
       handshake_module: hsk_module,
@@ -135,6 +147,8 @@ defmodule Membrane.ICE.Bin do
         stream_name: stream_name,
         stun_servers: stun_servers,
         turn_servers: turn_servers,
+        use_integrated_turn: use_integrated_turn,
+        integrated_turns_pids: integrated_turns_pids,
         controlling_mode: controlling_mode,
         port_range: port_range,
         hsk_module: hsk_module,
@@ -145,17 +159,12 @@ defmodule Membrane.ICE.Bin do
 
     children = [
       ice_source: Membrane.ICE.Source,
-      ice_sink: %Membrane.ICE.Sink{ice: ice}
+      ice_sink: %Membrane.ICE.Sink{ice: ice, use_integrated_turn: use_integrated_turn}
     ]
 
     spec = %ParentSpec{
       children: children
     }
-
-    Enum.each(turn_servers, fn
-      %{pid: turn_pid} ->
-        send(turn_pid, {:ice_pids, self(), connector})
-    end)
 
     {{:ok, spec: spec}, %{:connector => connector}}
   end
@@ -247,10 +256,6 @@ defmodule Membrane.ICE.Bin do
     do: {{:ok, notify: {:connection_failed, stream_id, component_id}}, state}
 
   def handle_other({:component_state_ready, _stream_id, _component_id} = msg, _ctx, state) do
-    {{:ok, forward: {:ice_sink, msg}}, state}
-  end
-
-  def handle_other({:libnice_sending_addr_estabilished, _turn_pid} = msg, _ctx, state) do
     {{:ok, forward: {:ice_sink, msg}}, state}
   end
 

@@ -14,6 +14,11 @@ defmodule Membrane.ICE.Sink do
                 type: :pid,
                 default: nil,
                 description: "Pid of ExLibnice instance. It's needed to send packets out."
+              ],
+              use_integrated_turn: [
+                spec: binary(),
+                default: true,
+                description: "Indicator, if use integrated TURN"
               ]
 
   def_input_pad :input,
@@ -24,11 +29,12 @@ defmodule Membrane.ICE.Sink do
 
   @impl true
   def handle_init(options) do
-    %__MODULE__{ice: ice} = options
+    %__MODULE__{ice: ice, use_integrated_turn: use_integrated_turn} = options
 
     {:ok,
      %{
        ice: ice,
+       use_integrated_turn: use_integrated_turn,
        ready_components: MapSet.new(),
        finished_hsk: %{}
      }}
@@ -61,7 +67,7 @@ defmodule Membrane.ICE.Sink do
         %{playback_state: :playing},
         %{ice: ice, stream_id: stream_id} = state
       ) do
-   with %{used_turn_pid: turn_pid} when is_pid(turn_pid) <- state do
+    with %{use_integrated_turn: true, used_turn_pid: turn_pid} when is_pid(turn_pid) <- state do
       send(
         turn_pid,
         {:ice_payload, payload}
@@ -101,20 +107,6 @@ defmodule Membrane.ICE.Sink do
   def handle_other({:hsk_finished, component_id, hsk_data}, ctx, state) do
     state = put_in(state.finished_hsk[component_id], hsk_data)
     maybe_send_demands(component_id, ctx, state)
-  end
-
-  def handle_other({:turn_server_started, turn_pid}, _ctx, state) do
-    # TODO: terminate unused TURNs after every ICE restart
-
-    state =
-      Map.update(
-        state,
-        :turn_pids,
-        [turn_pid],
-        &[turn_pid | &1]
-      )
-
-    {:ok, state}
   end
 
   def handle_other({:used_turn_pid, used_turn_pid}, _ctx, state) do

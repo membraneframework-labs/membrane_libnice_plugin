@@ -131,6 +131,10 @@ defmodule Membrane.ICE.Connector do
       hsk_opts: opts[:hsk_opts]
     }
 
+    if opts[:use_integrated_turn] do
+      Enum.each(opts[:integrated_turns_pids], &send(&1, {:peer_pid, self()}))
+    end
+
     {:ok, state}
   end
 
@@ -300,6 +304,12 @@ defmodule Membrane.ICE.Connector do
       ExLibnice.send_payload(state.ice, state.stream_id, component_id, packets)
     end
 
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:used_turn_pid, _used_turn_pid} = msg, state) do
+    send(state.parent, msg)
     {:noreply, state}
   end
 
