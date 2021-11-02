@@ -67,12 +67,9 @@ defmodule Membrane.ICE.Sink do
         %{playback_state: :playing},
         %{ice: ice, stream_id: stream_id} = state
       ) do
-    with %{use_integrated_turn: true, used_turn_pid: turn_pid} when is_pid(turn_pid) <- state do
-      send(
-        turn_pid,
-        {:ice_payload, payload}
-      )
-
+    with %{use_integrated_turn: true, selected_integrated_turn_pid: turn_pid}
+         when is_pid(turn_pid) <- state do
+      send(turn_pid, {:ice_payload, payload})
       {{:ok, demand: pad}, state}
     else
       _ ->
@@ -109,8 +106,8 @@ defmodule Membrane.ICE.Sink do
     maybe_send_demands(component_id, ctx, state)
   end
 
-  def handle_other({:used_turn_pid, used_turn_pid}, _ctx, state) do
-    {:ok, Map.put(state, :used_turn_pid, used_turn_pid)}
+  def handle_other({:selected_integrated_turn_pid, pid}, _ctx, state) do
+    {:ok, Map.put(state, :selected_integrated_turn_pid, pid)}
   end
 
   defp maybe_send_demands(component_id, ctx, state) do
