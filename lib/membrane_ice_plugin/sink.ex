@@ -72,7 +72,7 @@ defmodule Membrane.ICE.Sink do
       send(turn_pid, {:ice_payload, payload})
       {{:ok, demand: pad}, state}
     else
-      _ ->
+      _state ->
         case ExLibnice.send_payload(ice, stream_id, component_id, payload) do
           :ok ->
             {{:ok, demand: pad}, state}
