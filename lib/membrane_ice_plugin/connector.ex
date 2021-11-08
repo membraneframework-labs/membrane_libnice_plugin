@@ -131,6 +131,10 @@ defmodule Membrane.ICE.Connector do
       hsk_opts: opts[:hsk_opts]
     }
 
+    if opts[:use_integrated_turn] do
+      Enum.each(opts[:integrated_turns_pids], &send(&1, {:peer_pid, self()}))
+    end
+
     {:ok, state}
   end
 
@@ -249,7 +253,7 @@ defmodule Membrane.ICE.Connector do
   end
 
   @impl true
-  def handle_info({:component_state_ready, stream_id, component_id}, state) do
+  def handle_info({:component_state_ready, stream_id, component_id} = msg, state) do
     Membrane.Logger.debug("Component #{component_id} READY")
 
     {hsk_state, hsk_status, _hsk_data} = Map.get(state.handshakes, component_id)
@@ -276,7 +280,7 @@ defmodule Membrane.ICE.Connector do
         handle_connection_ready(state.hsk_module.connection_ready(hsk_state), component_id, state)
       end
 
-      send(state.parent, {:component_state_ready, stream_id, component_id})
+      send(state.parent, msg)
       {:noreply, state}
     end
   end
@@ -300,6 +304,12 @@ defmodule Membrane.ICE.Connector do
       ExLibnice.send_payload(state.ice, state.stream_id, component_id, packets)
     end
 
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:selected_integrated_turn_pid, _pid} = msg, state) do
+    send(state.parent, msg)
     {:noreply, state}
   end
 

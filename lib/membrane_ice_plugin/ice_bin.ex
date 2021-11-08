@@ -102,6 +102,16 @@ defmodule Membrane.ICE.Bin do
                 default: [],
                 description:
                   "Options for handshake module. They will be passed to init function of hsk_module"
+              ],
+              use_integrated_turn: [
+                spec: binary(),
+                default: true,
+                description: "Indicator, if use integrated TURN"
+              ],
+              integrated_turns_pids: [
+                spec: [pid()],
+                default: [],
+                description: "Pids of running integrated TURN servers"
               ]
 
   def_input_pad :input,
@@ -122,6 +132,8 @@ defmodule Membrane.ICE.Bin do
       stream_name: stream_name,
       stun_servers: stun_servers,
       turn_servers: turn_servers,
+      use_integrated_turn: use_integrated_turn,
+      integrated_turns_pids: integrated_turns_pids,
       controlling_mode: controlling_mode,
       port_range: port_range,
       handshake_module: hsk_module,
@@ -135,6 +147,8 @@ defmodule Membrane.ICE.Bin do
         stream_name: stream_name,
         stun_servers: stun_servers,
         turn_servers: turn_servers,
+        use_integrated_turn: use_integrated_turn,
+        integrated_turns_pids: integrated_turns_pids,
         controlling_mode: controlling_mode,
         port_range: port_range,
         hsk_module: hsk_module,
@@ -145,7 +159,7 @@ defmodule Membrane.ICE.Bin do
 
     children = [
       ice_source: Membrane.ICE.Source,
-      ice_sink: %Membrane.ICE.Sink{ice: ice}
+      ice_sink: %Membrane.ICE.Sink{ice: ice, use_integrated_turn: use_integrated_turn}
     ]
 
     spec = %ParentSpec{
@@ -244,6 +258,11 @@ defmodule Membrane.ICE.Bin do
   @impl true
   def handle_other({:component_state_failed, stream_id, component_id}, _ctx, state),
     do: {{:ok, notify: {:connection_failed, stream_id, component_id}}, state}
+
+  @impl true
+  def handle_other({:selected_integrated_turn_pid, _pid} = msg, _ctx, state) do
+    {{:ok, forward: {:ice_sink, msg}}, state}
+  end
 
   @impl true
   def handle_other({:hsk_finished, _component_id, _hsk_data} = msg, _ctx, state),

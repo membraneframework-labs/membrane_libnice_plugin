@@ -14,6 +14,11 @@ defmodule Membrane.ICE.Sink do
                 type: :pid,
                 default: nil,
                 description: "Pid of ExLibnice instance. It's needed to send packets out."
+              ],
+              use_integrated_turn: [
+                spec: binary(),
+                default: true,
+                description: "Indicator, if use integrated TURN"
               ]
 
   def_input_pad :input,
@@ -24,11 +29,12 @@ defmodule Membrane.ICE.Sink do
 
   @impl true
   def handle_init(options) do
-    %__MODULE__{ice: ice} = options
+    %__MODULE__{ice: ice, use_integrated_turn: use_integrated_turn} = options
 
     {:ok,
      %{
        ice: ice,
+       use_integrated_turn: use_integrated_turn,
        ready_components: MapSet.new(),
        finished_hsk: %{}
      }}
@@ -61,12 +67,19 @@ defmodule Membrane.ICE.Sink do
         %{playback_state: :playing},
         %{ice: ice, stream_id: stream_id} = state
       ) do
-    case ExLibnice.send_payload(ice, stream_id, component_id, payload) do
-      :ok ->
-        {{:ok, demand: pad}, state}
+    with %{use_integrated_turn: true, selected_integrated_turn_pid: turn_pid}
+         when is_pid(turn_pid) <- state do
+      send(turn_pid, {:ice_payload, payload})
+      {{:ok, demand: pad}, state}
+    else
+      _state ->
+        case ExLibnice.send_payload(ice, stream_id, component_id, payload) do
+          :ok ->
+            {{:ok, demand: pad}, state}
 
-      {:error, cause} ->
-        {{:ok, notify: {:could_not_send_payload, cause}}, state}
+          {:error, cause} ->
+            {{:ok, notify: {:could_not_send_payload, cause}}, state}
+        end
     end
   end
 
@@ -78,8 +91,11 @@ defmodule Membrane.ICE.Sink do
 
   @impl true
   def handle_other({:component_state_ready, stream_id, component_id}, ctx, state) do
-    state = Map.put(state, :stream_id, stream_id)
-    state = %{state | ready_components: MapSet.put(state.ready_components, component_id)}
+    state =
+      Map.merge(state, %{
+        stream_id: stream_id,
+        ready_components: MapSet.put(state.ready_components, component_id)
+      })
 
     maybe_send_demands(component_id, ctx, state)
   end
@@ -88,6 +104,10 @@ defmodule Membrane.ICE.Sink do
   def handle_other({:hsk_finished, component_id, hsk_data}, ctx, state) do
     state = put_in(state.finished_hsk[component_id], hsk_data)
     maybe_send_demands(component_id, ctx, state)
+  end
+
+  def handle_other({:selected_integrated_turn_pid, pid}, _ctx, state) do
+    {:ok, Map.put(state, :selected_integrated_turn_pid, pid)}
   end
 
   defp maybe_send_demands(component_id, ctx, state) do
