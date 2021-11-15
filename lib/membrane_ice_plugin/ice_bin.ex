@@ -111,7 +111,7 @@ defmodule Membrane.ICE.Bin do
               integrated_turn_ip: [
                 spec: :inet.ip4_address() | nil,
                 default: nil,
-                description: "Address, where integrated TURN server will be set up"
+                description: "Address integrated TURN server will listen at"
               ]
 
   def_input_pad :input,
