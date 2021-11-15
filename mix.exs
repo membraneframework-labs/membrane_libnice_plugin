@@ -44,7 +44,8 @@ defmodule Membrane.ICE.Plugin.Mixfile do
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false},
       {:credo, "~> 1.5", only: :dev, runtime: false},
       {:membrane_file_plugin, "~> 0.6.0", only: :test},
-      {:membrane_hackney_plugin, "~> 0.5.0", only: :test}
+      {:membrane_hackney_plugin, "~> 0.5.0", only: :test},
+      {:stun, github: "membraneframework/stun"}
     ]
   end
 

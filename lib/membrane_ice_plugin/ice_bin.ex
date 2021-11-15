@@ -140,11 +140,6 @@ defmodule Membrane.ICE.Bin do
       handshake_opts: hsk_opts
     } = options
 
-    integrated_turn_servers =
-      if use_integrated_turn,
-        do: start_integrated_turn_servers(integrated_turn_ip),
-        else: []
-
     {:ok, connector} =
       Connector.start_link(
         parent: self(),
@@ -153,12 +148,16 @@ defmodule Membrane.ICE.Bin do
         stun_servers: stun_servers,
         turn_servers: turn_servers,
         use_integrated_turn: use_integrated_turn,
-        integrated_turns_pids: Enum.map(integrated_turn_servers, & &1.pid),
         controlling_mode: controlling_mode,
         port_range: port_range,
         hsk_module: hsk_module,
         hsk_opts: hsk_opts
       )
+
+    integrated_turn_servers =
+      if use_integrated_turn,
+        do: start_integrated_turn_servers(integrated_turn_ip, connector),
+        else: []
 
     {:ok, ice} = Connector.get_ice_pid(connector)
 
@@ -319,9 +318,9 @@ defmodule Membrane.ICE.Bin do
     GenServer.stop(state.connector)
   end
 
-  defp start_integrated_turn_servers(nil = _ip), do: []
+  defp start_integrated_turn_servers(nil = _ip, _connector_pid), do: []
 
-  defp start_integrated_turn_servers(ip) do
+  defp start_integrated_turn_servers(ip, connector_pid) when is_pid(connector_pid) do
     [:udp, :tcp]
     |> Enum.map(fn transport ->
       secret = TurnUtils.generate_secret()
@@ -330,7 +329,8 @@ defmodule Membrane.ICE.Bin do
         TurnUtils.start_integrated_turn(
           secret,
           ip: ip,
-          transport: transport
+          transport: transport,
+          peer_pid: connector_pid
         )
 
       %{
