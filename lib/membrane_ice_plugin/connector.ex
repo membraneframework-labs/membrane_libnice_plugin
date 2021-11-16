@@ -131,10 +131,6 @@ defmodule Membrane.ICE.Connector do
       hsk_opts: opts[:hsk_opts]
     }
 
-    if opts[:use_integrated_turn] do
-      Enum.each(opts[:integrated_turns_pids], &send(&1, {:peer_pid, self()}))
-    end
-
     {:ok, state}
   end
 

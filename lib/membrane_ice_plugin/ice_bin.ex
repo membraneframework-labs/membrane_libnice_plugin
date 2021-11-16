@@ -144,11 +144,6 @@ defmodule Membrane.ICE.Bin do
       use_integrated_turn: use_integrated_turn
     } = integrated_turn_options
 
-    integrated_turn_servers =
-      if use_integrated_turn,
-        do: start_integrated_turn_servers(integrated_turn_options),
-        else: []
-
     {:ok, connector} =
       Connector.start_link(
         parent: self(),
@@ -157,12 +152,16 @@ defmodule Membrane.ICE.Bin do
         stun_servers: stun_servers,
         turn_servers: turn_servers,
         use_integrated_turn: use_integrated_turn,
-        integrated_turns_pids: Enum.map(integrated_turn_servers, & &1.pid),
         controlling_mode: controlling_mode,
         port_range: port_range,
         hsk_module: hsk_module,
         hsk_opts: hsk_opts
       )
+
+    integrated_turn_servers =
+      if use_integrated_turn,
+        do: start_integrated_turn_servers(integrated_turn_options, connector),
+        else: []
 
     {:ok, ice} = Connector.get_ice_pid(connector)
 
@@ -323,9 +322,10 @@ defmodule Membrane.ICE.Bin do
     GenServer.stop(state.connector)
   end
 
-  defp start_integrated_turn_servers(%{use_integrated_turn: true} = options) do
+  defp start_integrated_turn_servers(%{use_integrated_turn: true} = options, connector_pid)
+       when is_pid(connector_pid) do
     ip = options[:ip]
-    {min_port, max_port} = options[:client_port_range] || {50_000, 59_999}
+    {min_port, max_port} = options[:ports_range] || {50_000, 59_999}
     medium = trunc((min_port + max_port) / 2)
 
     client_port_range = {min_port, medium}
@@ -345,7 +345,8 @@ defmodule Membrane.ICE.Bin do
           client_port_range: client_port_range,
           alloc_port_range: alloc_port_range,
           ip: ip,
-          transport: transport
+          transport: transport,
+          peer_pid: connector_pid
         )
 
       %{
@@ -358,5 +359,5 @@ defmodule Membrane.ICE.Bin do
     end)
   end
 
-  defp start_integrated_turn_servers(_options), do: []
+  defp start_integrated_turn_servers(_options, _connector_pid), do: []
 end
