@@ -58,7 +58,7 @@ defmodule Membrane.ICE.Bin do
   """
   use Membrane.Bin
 
-  alias Membrane.ICE.Connector
+  alias Membrane.ICE.{Connector, TurnUtils}
 
   require Membrane.Logger
 
@@ -108,10 +108,10 @@ defmodule Membrane.ICE.Bin do
                 default: true,
                 description: "Indicator, if use integrated TURN"
               ],
-              integrated_turns_pids: [
-                spec: [pid()],
-                default: [],
-                description: "Pids of running integrated TURN servers"
+              integrated_turn_ip: [
+                spec: :inet.ip4_address() | nil,
+                default: nil,
+                description: "Address integrated TURN server will listen at"
               ]
 
   def_input_pad :input,
@@ -133,7 +133,7 @@ defmodule Membrane.ICE.Bin do
       stun_servers: stun_servers,
       turn_servers: turn_servers,
       use_integrated_turn: use_integrated_turn,
-      integrated_turns_pids: integrated_turns_pids,
+      integrated_turn_ip: integrated_turn_ip,
       controlling_mode: controlling_mode,
       port_range: port_range,
       handshake_module: hsk_module,
@@ -148,12 +148,16 @@ defmodule Membrane.ICE.Bin do
         stun_servers: stun_servers,
         turn_servers: turn_servers,
         use_integrated_turn: use_integrated_turn,
-        integrated_turns_pids: integrated_turns_pids,
         controlling_mode: controlling_mode,
         port_range: port_range,
         hsk_module: hsk_module,
         hsk_opts: hsk_opts
       )
+
+    integrated_turn_servers =
+      if use_integrated_turn,
+        do: start_integrated_turn_servers(integrated_turn_ip, connector),
+        else: []
 
     {:ok, ice} = Connector.get_ice_pid(connector)
 
@@ -166,7 +170,13 @@ defmodule Membrane.ICE.Bin do
       children: children
     }
 
-    {{:ok, spec: spec}, %{:connector => connector}}
+    notify_msg = {
+      :integrated_turn_servers,
+      integrated_turn_servers
+    }
+
+    {{:ok, spec: spec, notify: notify_msg},
+     %{:connector => connector, integrated_turn_servers: integrated_turn_servers}}
   end
 
   @impl true
@@ -303,7 +313,33 @@ defmodule Membrane.ICE.Bin do
   def handle_notification(msg, _from, _ctx, state), do: {{:ok, notify: msg}, state}
 
   @impl true
-  def handle_shutdown(_reason, %{connector: connector}) do
-    GenServer.stop(connector)
+  def handle_shutdown(_reason, state) do
+    Enum.each(state.integrated_turn_servers, &TurnUtils.stop_integrated_turn/1)
+    GenServer.stop(state.connector)
+  end
+
+  defp start_integrated_turn_servers(nil = _ip, _connector_pid), do: []
+
+  defp start_integrated_turn_servers(ip, connector_pid) when is_pid(connector_pid) do
+    [:udp, :tcp]
+    |> Enum.map(fn transport ->
+      secret = TurnUtils.generate_secret()
+
+      {:ok, port, pid} =
+        TurnUtils.start_integrated_turn(
+          secret,
+          ip: ip,
+          transport: transport,
+          peer_pid: connector_pid
+        )
+
+      %{
+        relay_type: transport,
+        secret: secret,
+        server_addr: ip,
+        server_port: port,
+        pid: pid
+      }
+    end)
   end
 end
