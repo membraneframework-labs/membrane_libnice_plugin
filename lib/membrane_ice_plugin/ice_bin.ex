@@ -65,6 +65,7 @@ defmodule Membrane.ICE.Bin do
   @type integrated_turn_options_t() :: %{
           use_integrated_turn: binary(),
           ip: :inet.ip4_address() | nil,
+          prepared_ip: :inet.ip4_address() | nil,
           ports_range: {:inet.port_number(), :inet.port_number()} | nil
         }
 
@@ -324,7 +325,8 @@ defmodule Membrane.ICE.Bin do
 
   defp start_integrated_turn_servers(%{use_integrated_turn: true} = options, connector_pid)
        when is_pid(connector_pid) do
-    ip = options[:ip]
+    ip = options[:ip] || {0, 0, 0, 0}
+    prepared_ip = options[:prepared_ip]
     {min_port, max_port} = options[:ports_range] || {50_000, 59_999}
     medium = trunc((min_port + max_port) / 2)
 
@@ -345,6 +347,7 @@ defmodule Membrane.ICE.Bin do
           client_port_range: client_port_range,
           alloc_port_range: alloc_port_range,
           ip: ip,
+          prepared_ip: prepared_ip,
           transport: transport,
           peer_pid: connector_pid
         )
