@@ -356,6 +356,7 @@ defmodule Membrane.ICE.Bin do
         relay_type: transport,
         secret: secret,
         server_addr: ip,
+        prepared_server_addr: prepared_ip,
         server_port: port,
         pid: pid
       }
