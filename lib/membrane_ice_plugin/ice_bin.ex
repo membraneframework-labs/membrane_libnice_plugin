@@ -62,6 +62,14 @@ defmodule Membrane.ICE.Bin do
 
   require Membrane.Logger
 
+  @typedoc """
+  Options defining the behavior of ICE.Bin in relation to integrated TURN servers.
+  - `:use_integrated_turn` - says, whether or not, use integrated TURN servers
+  - `:ip` - IP, where integrated TURN server will open its sockets
+  - `:mock_ip` - IP, that will be put part of XOR-RELAYED-ADDRESS attribute in Allocation Succes message.
+  Might be, but doesn't have to be equal to `:ip`
+  - `:ports_range` range, where integrated TURN server will try to open ports
+  """
   @type integrated_turn_options_t() :: [
           use_integrated_turn: boolean(),
           ip: :inet.ip4_address() | nil,
