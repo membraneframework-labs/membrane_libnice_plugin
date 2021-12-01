@@ -62,12 +62,12 @@ defmodule Membrane.ICE.Bin do
 
   require Membrane.Logger
 
-  @type integrated_turn_options_t() :: %{
-          use_integrated_turn: binary(),
+  @type integrated_turn_options_t() :: [
+          use_integrated_turn: boolean(),
           ip: :inet.ip4_address() | nil,
           mock_ip: :inet.ip4_address() | nil,
           ports_range: {:inet.port_number(), :inet.port_number()} | nil
-        }
+        ]
 
   def_options n_components: [
                 spec: integer(),
@@ -112,7 +112,7 @@ defmodule Membrane.ICE.Bin do
               ],
               integrated_turn_options: [
                 spec: [integrated_turn_options_t()],
-                default: %{use_integrated_turn: false},
+                default: [use_integrated_turn: false],
                 description: "Integrated TURN Options"
               ]
 
@@ -140,6 +140,8 @@ defmodule Membrane.ICE.Bin do
       handshake_module: hsk_module,
       handshake_opts: hsk_opts
     } = options
+
+    integrated_turn_options = Map.new(integrated_turn_options)
 
     %{
       use_integrated_turn: use_integrated_turn
