@@ -21,7 +21,7 @@ defmodule Example.Sender do
         handshake_module: Membrane.ICE.Handshake.Default
       },
       source: %Hackney.Source{
-        location: "https://membraneframework.github.io/static/video-samples/test-video.h264"
+        location: "https://membraneframework.github.io/static/samples/ffmpeg-testsrc.h264"
       }
     }
 

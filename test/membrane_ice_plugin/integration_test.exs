@@ -51,7 +51,7 @@ defmodule Membrane.ICE.IntegrationTest do
     assert File.exists?(@file_path)
 
     %{size: size} = File.stat!(@file_path)
-    assert size > 140_000
+    assert size > 60_000
 
     Testing.Pipeline.stop_and_terminate(rx_pid, blocking?: true)
     Testing.Pipeline.stop_and_terminate(tx_pid, blocking?: true)

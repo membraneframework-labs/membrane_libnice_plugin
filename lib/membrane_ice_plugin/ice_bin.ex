@@ -62,6 +62,21 @@ defmodule Membrane.ICE.Bin do
 
   require Membrane.Logger
 
+  @typedoc """
+  Options defining the behavior of ICE.Bin in relation to integrated TURN servers.
+  - `:use_integrated_turn` - says, whether or not, use integrated TURN servers
+  - `:ip` - IP, where integrated TURN server will open its sockets
+  - `:mock_ip` - IP, that will be put part of XOR-RELAYED-ADDRESS attribute in Allocation Succes message.
+  Might be, but doesn't have to be equal to `:ip`
+  - `:ports_range` range, where integrated TURN server will try to open ports
+  """
+  @type integrated_turn_options_t() :: [
+          use_integrated_turn: boolean(),
+          ip: :inet.ip4_address() | nil,
+          mock_ip: :inet.ip4_address() | nil,
+          ports_range: {:inet.port_number(), :inet.port_number()} | nil
+        ]
+
   def_options n_components: [
                 spec: integer(),
                 default: 1,
@@ -103,15 +118,10 @@ defmodule Membrane.ICE.Bin do
                 description:
                   "Options for handshake module. They will be passed to init function of hsk_module"
               ],
-              use_integrated_turn: [
-                spec: binary(),
-                default: true,
-                description: "Indicator, if use integrated TURN"
-              ],
-              integrated_turn_ip: [
-                spec: :inet.ip4_address() | nil,
-                default: nil,
-                description: "Address integrated TURN server will listen at"
+              integrated_turn_options: [
+                spec: [integrated_turn_options_t()],
+                default: [use_integrated_turn: false],
+                description: "Integrated TURN Options"
               ]
 
   def_input_pad :input,
@@ -132,13 +142,18 @@ defmodule Membrane.ICE.Bin do
       stream_name: stream_name,
       stun_servers: stun_servers,
       turn_servers: turn_servers,
-      use_integrated_turn: use_integrated_turn,
-      integrated_turn_ip: integrated_turn_ip,
+      integrated_turn_options: integrated_turn_options,
       controlling_mode: controlling_mode,
       port_range: port_range,
       handshake_module: hsk_module,
       handshake_opts: hsk_opts
     } = options
+
+    integrated_turn_options = Map.new(integrated_turn_options)
+
+    %{
+      use_integrated_turn: use_integrated_turn
+    } = integrated_turn_options
 
     {:ok, connector} =
       Connector.start_link(
@@ -156,7 +171,7 @@ defmodule Membrane.ICE.Bin do
 
     integrated_turn_servers =
       if use_integrated_turn,
-        do: start_integrated_turn_servers(integrated_turn_ip, connector),
+        do: start_integrated_turn_servers(integrated_turn_options, connector),
         else: []
 
     {:ok, ice} = Connector.get_ice_pid(connector)
@@ -318,9 +333,20 @@ defmodule Membrane.ICE.Bin do
     GenServer.stop(state.connector)
   end
 
-  defp start_integrated_turn_servers(nil = _ip, _connector_pid), do: []
+  defp start_integrated_turn_servers(%{use_integrated_turn: true} = options, connector_pid)
+       when is_pid(connector_pid) do
+    ip = options[:ip] || {0, 0, 0, 0}
+    mock_ip = options[:mock_ip]
+    {min_port, max_port} = options[:ports_range] || {50_000, 59_999}
+    medium = trunc((min_port + max_port) / 2)
 
-  defp start_integrated_turn_servers(ip, connector_pid) when is_pid(connector_pid) do
+    client_port_range = {min_port, medium}
+
+    alloc_port_range =
+      if medium == max_port,
+        do: {medium, max_port},
+        else: {medium + 1, max_port}
+
     [:udp, :tcp]
     |> Enum.map(fn transport ->
       secret = TurnUtils.generate_secret()
@@ -328,7 +354,10 @@ defmodule Membrane.ICE.Bin do
       {:ok, port, pid} =
         TurnUtils.start_integrated_turn(
           secret,
+          client_port_range: client_port_range,
+          alloc_port_range: alloc_port_range,
           ip: ip,
+          mock_ip: mock_ip,
           transport: transport,
           peer_pid: connector_pid
         )
@@ -337,9 +366,12 @@ defmodule Membrane.ICE.Bin do
         relay_type: transport,
         secret: secret,
         server_addr: ip,
+        mocked_server_addr: mock_ip,
         server_port: port,
         pid: pid
       }
     end)
   end
+
+  defp start_integrated_turn_servers(_options, _connector_pid), do: []
 end

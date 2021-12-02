@@ -60,6 +60,17 @@ defmodule Membrane.ICE.Sink do
     {:ok, state}
   end
 
+  def handle_write(
+        Pad.ref(:input, _component_id) = pad,
+        %Membrane.Buffer{payload: payload},
+        %{playback_state: :playing},
+        %{use_integrated_turn: true, selected_integrated_turn_pid: turn_pid} = state
+      )
+      when is_pid(turn_pid) do
+    send(turn_pid, {:ice_payload, payload})
+    {{:ok, demand: pad}, state}
+  end
+
   @impl true
   def handle_write(
         Pad.ref(:input, component_id) = pad,
@@ -67,19 +78,12 @@ defmodule Membrane.ICE.Sink do
         %{playback_state: :playing},
         %{ice: ice, stream_id: stream_id} = state
       ) do
-    with %{use_integrated_turn: true, selected_integrated_turn_pid: turn_pid}
-         when is_pid(turn_pid) <- state do
-      send(turn_pid, {:ice_payload, payload})
-      {{:ok, demand: pad}, state}
-    else
-      _state ->
-        case ExLibnice.send_payload(ice, stream_id, component_id, payload) do
-          :ok ->
-            {{:ok, demand: pad}, state}
+    case ExLibnice.send_payload(ice, stream_id, component_id, payload) do
+      :ok ->
+        {{:ok, demand: pad}, state}
 
-          {:error, cause} ->
-            {{:ok, notify: {:could_not_send_payload, cause}}, state}
-        end
+      {:error, cause} ->
+        {{:ok, notify: {:could_not_send_payload, cause}}, state}
     end
   end
 
