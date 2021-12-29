@@ -17,7 +17,8 @@ defmodule Membrane.ICE.Support.TestSender do
         handshake_opts: opts[:handshake_opts]
       },
       source: %Hackney.Source{
-        location: "https://membraneframework.github.io/static/samples/ffmpeg-testsrc.h264"
+        location: "https://membraneframework.github.io/static/samples/ffmpeg-testsrc.h264",
+        hackney_opts: [follow_redirect: true]
       }
     }
 
