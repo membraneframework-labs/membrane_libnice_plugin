@@ -58,24 +58,9 @@ defmodule Membrane.ICE.Bin do
   """
   use Membrane.Bin
 
-  alias Membrane.ICE.{Connector, TurnUtils}
+  alias Membrane.ICE.Connector
 
   require Membrane.Logger
-
-  @typedoc """
-  Options defining the behavior of ICE.Bin in relation to integrated TURN servers.
-  - `:use_integrated_turn` - says, whether or not, use integrated TURN servers
-  - `:ip` - IP, where integrated TURN server will open its sockets
-  - `:mock_ip` - IP, that will be put part of XOR-RELAYED-ADDRESS attribute in Allocation Succes message.
-  Might be, but doesn't have to be equal to `:ip`
-  - `:ports_range` range, where integrated TURN server will try to open ports
-  """
-  @type integrated_turn_options_t() :: [
-          use_integrated_turn: boolean(),
-          ip: :inet.ip4_address() | nil,
-          mock_ip: :inet.ip4_address() | nil,
-          ports_range: {:inet.port_number(), :inet.port_number()} | nil
-        ]
 
   def_options n_components: [
                 spec: integer(),
@@ -117,11 +102,6 @@ defmodule Membrane.ICE.Bin do
                 default: [],
                 description:
                   "Options for handshake module. They will be passed to init function of hsk_module"
-              ],
-              integrated_turn_options: [
-                spec: [integrated_turn_options_t()],
-                default: [use_integrated_turn: false],
-                description: "Integrated TURN Options"
               ]
 
   def_input_pad :input,
@@ -142,18 +122,11 @@ defmodule Membrane.ICE.Bin do
       stream_name: stream_name,
       stun_servers: stun_servers,
       turn_servers: turn_servers,
-      integrated_turn_options: integrated_turn_options,
       controlling_mode: controlling_mode,
       port_range: port_range,
       handshake_module: hsk_module,
       handshake_opts: hsk_opts
     } = options
-
-    integrated_turn_options = Map.new(integrated_turn_options)
-
-    %{
-      use_integrated_turn: use_integrated_turn
-    } = integrated_turn_options
 
     {:ok, connector} =
       Connector.start_link(
@@ -162,36 +135,24 @@ defmodule Membrane.ICE.Bin do
         stream_name: stream_name,
         stun_servers: stun_servers,
         turn_servers: turn_servers,
-        use_integrated_turn: use_integrated_turn,
         controlling_mode: controlling_mode,
         port_range: port_range,
         hsk_module: hsk_module,
         hsk_opts: hsk_opts
       )
 
-    integrated_turn_servers =
-      if use_integrated_turn,
-        do: start_integrated_turn_servers(integrated_turn_options, connector),
-        else: []
-
     {:ok, ice} = Connector.get_ice_pid(connector)
 
     children = [
       ice_source: Membrane.ICE.Source,
-      ice_sink: %Membrane.ICE.Sink{ice: ice, use_integrated_turn: use_integrated_turn}
+      ice_sink: %Membrane.ICE.Sink{ice: ice}
     ]
 
     spec = %ParentSpec{
       children: children
     }
 
-    notify_msg = {
-      :integrated_turn_servers,
-      integrated_turn_servers
-    }
-
-    {{:ok, spec: spec, notify: notify_msg},
-     %{:connector => connector, integrated_turn_servers: integrated_turn_servers}}
+    {{:ok, spec: spec, notify: {:integrated_turn_servers, []}}, %{:connector => connector}}
   end
 
   @impl true
@@ -285,11 +246,6 @@ defmodule Membrane.ICE.Bin do
     do: {{:ok, notify: {:connection_failed, stream_id, component_id}}, state}
 
   @impl true
-  def handle_other({:selected_integrated_turn_pid, _pid} = msg, _ctx, state) do
-    {{:ok, forward: {:ice_sink, msg}}, state}
-  end
-
-  @impl true
   def handle_other({:hsk_finished, _component_id, _hsk_data} = msg, _ctx, state),
     do: {{:ok, [forward: {:ice_source, msg}, forward: {:ice_sink, msg}]}, state}
 
@@ -329,49 +285,6 @@ defmodule Membrane.ICE.Bin do
 
   @impl true
   def handle_shutdown(_reason, state) do
-    Enum.each(state.integrated_turn_servers, &TurnUtils.stop_integrated_turn/1)
     GenServer.stop(state.connector)
   end
-
-  defp start_integrated_turn_servers(%{use_integrated_turn: true} = options, connector_pid)
-       when is_pid(connector_pid) do
-    ip = options[:ip] || {0, 0, 0, 0}
-    mock_ip = options[:mock_ip]
-    {min_port, max_port} = options[:ports_range] || {50_000, 59_999}
-    medium = trunc((min_port + max_port) / 2)
-
-    client_port_range = {min_port, medium}
-
-    alloc_port_range =
-      if medium == max_port,
-        do: {medium, max_port},
-        else: {medium + 1, max_port}
-
-    [:udp, :tcp]
-    |> Enum.map(fn transport ->
-      secret = TurnUtils.generate_secret()
-
-      {:ok, port, pid} =
-        TurnUtils.start_integrated_turn(
-          secret,
-          client_port_range: client_port_range,
-          alloc_port_range: alloc_port_range,
-          ip: ip,
-          mock_ip: mock_ip,
-          transport: transport,
-          peer_pid: connector_pid
-        )
-
-      %{
-        relay_type: transport,
-        secret: secret,
-        server_addr: ip,
-        mocked_server_addr: mock_ip,
-        server_port: port,
-        pid: pid
-      }
-    end)
-  end
-
-  defp start_integrated_turn_servers(_options, _connector_pid), do: []
 end
