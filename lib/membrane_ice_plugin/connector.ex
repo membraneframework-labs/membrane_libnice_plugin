@@ -303,12 +303,6 @@ defmodule Membrane.ICE.Connector do
     {:noreply, state}
   end
 
-  # @impl true
-  # def handle_info({:selected_integrated_turn_pid, _pid} = msg, state) do
-  #   send(state.parent, msg)
-  #   {:noreply, state}
-  # end
-
   @impl true
   def terminate(_reason, %State{ice: ice, hsk_module: hsk_module, handshakes: handshakes}) do
     handshakes
