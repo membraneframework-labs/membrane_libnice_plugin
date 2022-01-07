@@ -1,6 +1,6 @@
 # Example
 
-This example shows how to establish a connection between two peers using `membrane_ice_plugin` and
+This example shows how to establish a connection between two peers using `membrane_libnice_plugin` and
 send an example video file.
 We will use [Membrane Hackney plugin](https://github.com/membraneframework/membrane_hackney_plugin)
 for downloading the example video file and [Membrane File plugin](https://github.com/membraneframework/membrane_file_plugin)
@@ -64,9 +64,9 @@ This will start connection establishment attempts.
 As soon as connection is established sender side will download and send an example video file which
 then will be received and saved under `/tmp/ice-recv.h264` by the other peer.
 
-**Note**: after establishing ice connection on all input and output ICE Bin pads we send `HandshakeEvent`.
+**Note**: after establishing ice connection on all input and output Libnice Bin pads we send `HandshakeEvent`.
 This event carries data returned by handshake module at the end of handshake and can be handled like
-any other event in Membrane using `handle_event` callback in your elements linked to ICE Bin.
+any other event in Membrane using `handle_event` callback in your elements linked to Libnice Bin.
 In this example we use the `Default` handshake module which means no handshake is performed after
 establishing ICE connection.
 
@@ -83,7 +83,7 @@ end
 You can use for e.g. [Membrane DTLS plugin](https://github.com/membraneframework/membrane_dtls_plugin.git)
 to perform DTLS or DTLS-SRTP handshake after establishing ICE connection and then you will get some
 binary data that will represent `keying material`. You can also implement your own
-handshake modules by implementing `Membrane.ICE.Handshake` behaviour, but we will not cover this
+handshake modules by implementing `Membrane.Libnice.Handshake` behaviour, but we will not cover this
 in the example.
 
 You can test received video with:

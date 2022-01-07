@@ -1,11 +1,11 @@
-defmodule Membrane.ICE.Source do
+defmodule Membrane.Libnice.Source do
   @moduledoc """
   Element that convey buffers received over net (TCP or UDP) to relevant pads.
   """
 
   use Membrane.Source
 
-  alias Membrane.ICE.Handshake
+  alias Membrane.Libnice.Handshake
 
   require Membrane.Logger
 

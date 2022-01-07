@@ -1,10 +1,10 @@
-defmodule Membrane.ICE.IntegrationTest do
+defmodule Membrane.Libnice.IntegrationTest do
   use ExUnit.Case, async: true
 
   import Membrane.Testing.Assertions
 
   alias Membrane.Testing
-  alias Membrane.ICE.Handshake
+  alias Membrane.Libnice.Handshake
 
   @file_path "/tmp/ice-recv.h264"
 
@@ -17,13 +17,13 @@ defmodule Membrane.ICE.IntegrationTest do
   test "trickle with default handshake" do
     {:ok, tx_pid} =
       Testing.Pipeline.start_link(%Testing.Pipeline.Options{
-        module: Membrane.ICE.Support.TestSender,
+        module: Membrane.Libnice.Support.TestSender,
         custom_args: [handshake_module: Handshake.Default, handshake_opts: []]
       })
 
     {:ok, rx_pid} =
       Testing.Pipeline.start_link(%Testing.Pipeline.Options{
-        module: Membrane.ICE.Support.TestReceiver,
+        module: Membrane.Libnice.Support.TestReceiver,
         custom_args: [
           handshake_module: Handshake.Default,
           handshake_opts: [],

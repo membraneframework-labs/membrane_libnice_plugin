@@ -1,16 +1,16 @@
-defmodule Membrane.ICE.Sink do
+defmodule Membrane.Libnice.Sink do
   @moduledoc """
   Element that sends buffers (over UDP or TCP) received on different pads to relevant receivers.
   """
 
   use Membrane.Sink
 
-  alias Membrane.ICE.Handshake
+  alias Membrane.Libnice.Handshake
   alias Membrane.Funnel
 
   require Membrane.Logger
 
-  def_options ice: [
+  def_options libnice: [
                 type: :pid,
                 default: nil,
                 description: "Pid of ExLibnice instance. It's needed to send packets out."
@@ -24,11 +24,11 @@ defmodule Membrane.ICE.Sink do
 
   @impl true
   def handle_init(options) do
-    %__MODULE__{ice: ice} = options
+    %__MODULE__{libnice: libnice} = options
 
     {:ok,
      %{
-       ice: ice,
+       libnice: libnice,
        ready_components: MapSet.new(),
        finished_hsk: %{}
      }}
@@ -59,9 +59,9 @@ defmodule Membrane.ICE.Sink do
         Pad.ref(:input, component_id) = pad,
         %Membrane.Buffer{payload: payload},
         %{playback_state: :playing},
-        %{ice: ice, stream_id: stream_id} = state
+        %{libnice: libnice, stream_id: stream_id} = state
       ) do
-    case ExLibnice.send_payload(ice, stream_id, component_id, payload) do
+    case ExLibnice.send_payload(libnice, stream_id, component_id, payload) do
       :ok ->
         {{:ok, demand: pad}, state}
 

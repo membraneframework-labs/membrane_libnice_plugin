@@ -1,12 +1,12 @@
-defmodule Membrane.ICE.Connector do
+defmodule Membrane.Libnice.Connector do
   @moduledoc false
 
   # This module is responsible for interacting with `libnice` i.e. establishing connection,
-  # sending and receiving messages and conveying them to ICE Bin.
+  # sending and receiving messages and conveying them to Libnice Bin.
 
   use GenServer
 
-  alias Membrane.ICE.Handshake
+  alias Membrane.Libnice.Handshake
 
   require Unifex.CNode
   require Membrane.Logger
@@ -23,7 +23,7 @@ defmodule Membrane.ICE.Connector do
 
     @type t :: %__MODULE__{
             parent: pid(),
-            ice: pid(),
+            libnice: pid(),
             controlling_mode: boolean(),
             stream_id: integer(),
             n_components: integer(),
@@ -36,7 +36,7 @@ defmodule Membrane.ICE.Connector do
             cached_hsk_packets: %{key: component_id(), value: binary()}
           }
     defstruct parent: nil,
-              ice: nil,
+              libnice: nil,
               controlling_mode: false,
               stream_id: nil,
               n_components: 1,
@@ -54,9 +54,9 @@ defmodule Membrane.ICE.Connector do
     GenServer.start_link(__MODULE__, opts)
   end
 
-  @spec get_ice_pid(connector :: pid()) :: {:ok, ice_pid :: pid()}
-  def get_ice_pid(pid) do
-    GenServer.call(pid, :get_ice_pid)
+  @spec get_libnice_pid(connector :: pid()) :: {:ok, libnice_pid :: pid()}
+  def get_libnice_pid(pid) do
+    GenServer.call(pid, :get_libnice_pid)
   end
 
   @spec run(connector :: pid()) ::
@@ -112,7 +112,7 @@ defmodule Membrane.ICE.Connector do
   # Server API
   @impl true
   def init(opts) do
-    {:ok, ice} =
+    {:ok, libnice} =
       ExLibnice.start_link(
         parent: self(),
         stun_servers: opts[:stun_servers],
@@ -122,7 +122,7 @@ defmodule Membrane.ICE.Connector do
 
     state = %State{
       parent: opts[:parent],
-      ice: ice,
+      libnice: libnice,
       controlling_mode: opts[:controlling_mode],
       n_components: opts[:n_components],
       stream_name: opts[:stream_name],
@@ -135,16 +135,16 @@ defmodule Membrane.ICE.Connector do
   end
 
   @impl true
-  def handle_call(:get_ice_pid, _from, %State{ice: ice} = state) do
-    {:reply, {:ok, ice}, state}
+  def handle_call(:get_libnice_pid, _from, %State{libnice: libnice} = state) do
+    {:reply, {:ok, libnice}, state}
   end
 
   @impl true
-  def handle_call(:run, _from, %State{ice: ice} = state) do
+  def handle_call(:run, _from, %State{libnice: libnice} = state) do
     with {:ok, hsk_init_data, %State{stream_id: stream_id} = state} <-
            add_stream(state),
-         :ok <- ExLibnice.set_relay_info(ice, stream_id, :all, state.turn_servers),
-         {:ok, credentials} <- ExLibnice.get_local_credentials(ice, stream_id) do
+         :ok <- ExLibnice.set_relay_info(libnice, stream_id, :all, state.turn_servers),
+         {:ok, credentials} <- ExLibnice.get_local_credentials(libnice, stream_id) do
       {:reply, {:ok, hsk_init_data, credentials}, state}
     else
       {:error, cause} -> {:stop, {:error, cause}, state}
@@ -152,16 +152,16 @@ defmodule Membrane.ICE.Connector do
   end
 
   @impl true
-  def handle_call(:generate_local_sdp, _from, %State{ice: ice} = state) do
-    {:ok, local_sdp} = ExLibnice.generate_local_sdp(ice)
+  def handle_call(:generate_local_sdp, _from, %State{libnice: libnice} = state) do
+    {:ok, local_sdp} = ExLibnice.generate_local_sdp(libnice)
     # the version of the SDP protocol. RFC 4566 defines only v=0 - section 5.1
     local_sdp = "v=0\r\n" <> local_sdp
     {:reply, {:ok, local_sdp}, state}
   end
 
   @impl true
-  def handle_call({:parse_remote_sdp, sdp}, _from, %State{ice: ice} = state) do
-    ExLibnice.parse_remote_sdp(ice, sdp)
+  def handle_call({:parse_remote_sdp, sdp}, _from, %State{libnice: libnice} = state) do
+    ExLibnice.parse_remote_sdp(libnice, sdp)
     {:reply, :ok, state}
   end
 
@@ -169,9 +169,9 @@ defmodule Membrane.ICE.Connector do
   def handle_call(
         {:set_remote_credentials, credentials},
         _from,
-        %{ice: ice, stream_id: stream_id} = state
+        %{libnice: libnice, stream_id: stream_id} = state
       ) do
-    ExLibnice.set_remote_credentials(ice, credentials, stream_id)
+    ExLibnice.set_remote_credentials(libnice, credentials, stream_id)
     {:reply, :ok, state}
   end
 
@@ -179,9 +179,9 @@ defmodule Membrane.ICE.Connector do
   def handle_call(
         :peer_candidate_gathering_done,
         _from,
-        %State{ice: ice, stream_id: stream_id} = state
+        %State{libnice: libnice, stream_id: stream_id} = state
       ) do
-    ExLibnice.peer_candidate_gathering_done(ice, stream_id)
+    ExLibnice.peer_candidate_gathering_done(libnice, stream_id)
     {:reply, :ok, state}
   end
 
@@ -189,17 +189,17 @@ defmodule Membrane.ICE.Connector do
   def handle_call(
         {:set_remote_candidate, candidate, component_id},
         _from,
-        %State{ice: ice, stream_id: stream_id} = state
+        %State{libnice: libnice, stream_id: stream_id} = state
       ) do
-    ExLibnice.set_remote_candidate(ice, candidate, stream_id, component_id)
+    ExLibnice.set_remote_candidate(libnice, candidate, stream_id, component_id)
     {:reply, :ok, state}
   end
 
   @impl true
-  def handle_call(:restart_stream, _from, %State{ice: ice, stream_id: stream_id} = state) do
-    with :ok <- ExLibnice.restart_stream(ice, stream_id),
-         {:ok, credentials} <- ExLibnice.get_local_credentials(ice, stream_id),
-         :ok <- ExLibnice.gather_candidates(ice, stream_id) do
+  def handle_call(:restart_stream, _from, %State{libnice: libnice, stream_id: stream_id} = state) do
+    with :ok <- ExLibnice.restart_stream(libnice, stream_id),
+         {:ok, credentials} <- ExLibnice.get_local_credentials(libnice, stream_id),
+         :ok <- ExLibnice.gather_candidates(libnice, stream_id) do
       {:reply, {:ok, credentials}, state}
     else
       {:error, cause} -> {:reply, {:error, cause}, state}
@@ -207,14 +207,14 @@ defmodule Membrane.ICE.Connector do
   end
 
   @impl true
-  def handle_call(:reset, _from, %State{ice: ice, stream_id: stream_id} = state) do
-    ExLibnice.remove_stream(ice, stream_id)
+  def handle_call(:reset, _from, %State{libnice: libnice, stream_id: stream_id} = state) do
+    ExLibnice.remove_stream(libnice, stream_id)
     {:reply, :ok, state}
   end
 
   @impl true
-  def handle_cast(:gather_candidates, %State{ice: ice, stream_id: stream_id} = state) do
-    ExLibnice.gather_candidates(ice, stream_id)
+  def handle_cast(:gather_candidates, %State{libnice: libnice, stream_id: stream_id} = state) do
+    ExLibnice.gather_candidates(libnice, stream_id)
     {:noreply, state}
   end
 
@@ -270,7 +270,7 @@ defmodule Membrane.ICE.Connector do
           Membrane.Logger.debug("Nothing to be sent for component: #{component_id}")
         else
           Membrane.Logger.debug("Sending cached handshake packets for component: #{component_id}")
-          ExLibnice.send_payload(state.ice, stream_id, component_id, cached_packets)
+          ExLibnice.send_payload(state.libnice, stream_id, component_id, cached_packets)
         end
 
         handle_connection_ready(state.hsk_module.connection_ready(hsk_state), component_id, state)
@@ -297,25 +297,25 @@ defmodule Membrane.ICE.Connector do
   def handle_info({:retransmit, from, packets}, state) do
     for {component_id, {%{dtls: dtls_pid}, _hsk_status, _hsk_data}} <- state.handshakes,
         dtls_pid == from do
-      ExLibnice.send_payload(state.ice, state.stream_id, component_id, packets)
+      ExLibnice.send_payload(state.libnice, state.stream_id, component_id, packets)
     end
 
     {:noreply, state}
   end
 
   @impl true
-  def terminate(_reason, %State{ice: ice, hsk_module: hsk_module, handshakes: handshakes}) do
+  def terminate(_reason, %State{libnice: libnice, hsk_module: hsk_module, handshakes: handshakes}) do
     handshakes
     |> Map.values()
     |> Enum.each(fn {state, _status, _data} -> hsk_module.stop(state) end)
 
-    GenServer.stop(ice)
+    GenServer.stop(libnice)
   end
 
   defp handle_connection_ready(:ok, _component_id, _state), do: :ok
 
   defp handle_connection_ready({:ok, packets}, component_id, state) do
-    ExLibnice.send_payload(state.ice, state.stream_id, component_id, packets)
+    ExLibnice.send_payload(state.libnice, state.stream_id, component_id, packets)
     :ok
   end
 
@@ -330,7 +330,7 @@ defmodule Membrane.ICE.Connector do
 
   defp handle_process({:handshake_packets, packets}, component_id, state) do
     if MapSet.member?(state.connections, component_id) do
-      ExLibnice.send_payload(state.ice, state.stream_id, component_id, packets)
+      ExLibnice.send_payload(state.libnice, state.stream_id, component_id, packets)
       {:noreply, state}
     else
       # if connection is not ready yet cache data
@@ -344,7 +344,7 @@ defmodule Membrane.ICE.Connector do
     do: handle_end_of_hsk(component_id, hsk_data, state)
 
   defp handle_process({:handshake_finished, hsk_data, packets}, component_id, state) do
-    ExLibnice.send_payload(state.ice, state.stream_id, component_id, packets)
+    ExLibnice.send_payload(state.libnice, state.stream_id, component_id, packets)
     handle_end_of_hsk(component_id, hsk_data, state)
   end
 
@@ -367,14 +367,14 @@ defmodule Membrane.ICE.Connector do
 
   defp add_stream(state) do
     %State{
-      ice: ice,
+      libnice: libnice,
       n_components: n_components,
       stream_name: stream_name,
       hsk_module: hsk_module,
       hsk_opts: hsk_opts
     } = state
 
-    case ExLibnice.add_stream(ice, n_components, stream_name) do
+    case ExLibnice.add_stream(libnice, n_components, stream_name) do
       {:ok, stream_id} ->
         hsk_init_results =
           1..n_components

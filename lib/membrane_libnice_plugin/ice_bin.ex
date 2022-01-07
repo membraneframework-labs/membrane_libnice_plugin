@@ -1,34 +1,34 @@
-defmodule Membrane.ICE.Bin do
+defmodule Membrane.Libnice.Bin do
   @moduledoc """
   Bin used for establishing ICE connection, sending and receiving messages.
 
   ### Architecture and pad semantic
   Both input and output pads are dynamic ones.
-  One instance of ICE Bin is responsible for handling only one ICE stream which can have
+  One instance of Libnice Bin is responsible for handling only one ICE stream which can have
   multiple components.
   Each pad is responsible for carrying data from/to one component.
 
   ### Linking using output pad
-  To receive messages after establishing ICE connection you have to link ICE Bin to your element
+  To receive messages after establishing ICE connection you have to link Libnice Bin to your element
   via `Pad.ref(:output, component_id)`.  `component_id` is an id of component from which your
   element will receive messages. E.g. if you passed as `n_components` 2 it means that there will be
-  two components and you can link ICE Bin to your element via `Pad.ref(:output, 1)`
+  two components and you can link Libnice Bin to your element via `Pad.ref(:output, 1)`
   and `Pad.ref(:output, 2)`.
 
-  **Important**: you can link to ICE Bin using its output pad in any moment you want but if you don't
+  **Important**: you can link to Libnice Bin using its output pad in any moment you want but if you don't
   want to miss any messages do it before playing your pipeline.
 
   **Important**: you can't link multiple elements using the same `component_id`. Messages from
   one component can be conveyed only to one element.
 
   ### Linking using input pad
-  To send messages after establishing ICE connection you have to link to ICE Bin via
+  To send messages after establishing ICE connection you have to link to Libnice Bin via
   `Pad.ref(:input, component_id)`. `component_id` is an id of component which will be used to send
   messages via net. To send data from multiple elements via the same `component_id` you have to
   use [membrane_funnel_plugin](https://github.com/membraneframework/membrane_funnel_plugin).
 
   ### Messages API
-  You can send following messages to ICE Bin:
+  You can send following messages to Libnice Bin:
 
   - `:gather_candidates`
 
@@ -52,13 +52,13 @@ defmodule Membrane.ICE.Bin do
     Triggered by: `{:set_remote_candidate, candidate, component_id}` or `{:parse_remote_sdp, sdp}`
 
   ### Sending and receiving messages
-  To send or receive messages just link to ICE Bin using relevant pads.
-  As soon as connection is established your element will receive demands from ICE Sink or
-  messages from ICE Source.
+  To send or receive messages just link to Libnice Bin using relevant pads.
+  As soon as connection is established your element will receive demands from Libnice Sink or
+  messages from Libnice Source.
   """
   use Membrane.Bin
 
-  alias Membrane.ICE.Connector
+  alias Membrane.Libnice.Connector
 
   require Membrane.Logger
 
@@ -141,29 +141,29 @@ defmodule Membrane.ICE.Bin do
         hsk_opts: hsk_opts
       )
 
-    {:ok, ice} = Connector.get_ice_pid(connector)
+    {:ok, libnice} = Connector.get_libnice_pid(connector)
 
     children = [
-      ice_source: Membrane.ICE.Source,
-      ice_sink: %Membrane.ICE.Sink{ice: ice}
+      libnice_source: Membrane.Libnice.Source,
+      libnice_sink: %Membrane.Libnice.Sink{libnice: libnice}
     ]
 
     spec = %ParentSpec{
       children: children
     }
 
-    {{:ok, spec: spec, notify: {:integrated_turn_servers, []}}, %{:connector => connector}}
+    {{:ok, spec: spec}, %{:connector => connector}}
   end
 
   @impl true
   def handle_pad_added(Pad.ref(:output, _component_id) = pad, _ctx, state) do
-    links = [link(:ice_source) |> via_out(pad) |> to_bin_output(pad)]
+    links = [link(:libnice_source) |> via_out(pad) |> to_bin_output(pad)]
     {{:ok, spec: %ParentSpec{links: links}}, state}
   end
 
   @impl true
   def handle_pad_added(Pad.ref(:input, _component_id) = pad, _ctx, state) do
-    links = [link_bin_input(pad) |> via_in(pad) |> to(:ice_sink)]
+    links = [link_bin_input(pad) |> via_in(pad) |> to(:libnice_sink)]
     {{:ok, spec: %ParentSpec{links: links}}, state}
   end
 
@@ -239,7 +239,7 @@ defmodule Membrane.ICE.Bin do
 
   @impl true
   def handle_other({:component_state_ready, _stream_id, _component_id} = msg, _ctx, state),
-    do: {{:ok, forward: {:ice_sink, msg}}, state}
+    do: {{:ok, forward: {:libnice_sink, msg}}, state}
 
   @impl true
   def handle_other({:component_state_failed, stream_id, component_id}, _ctx, state),
@@ -247,12 +247,12 @@ defmodule Membrane.ICE.Bin do
 
   @impl true
   def handle_other({:hsk_finished, _component_id, _hsk_data} = msg, _ctx, state),
-    do: {{:ok, [forward: {:ice_source, msg}, forward: {:ice_sink, msg}]}, state}
+    do: {{:ok, [forward: {:libnice_source, msg}, forward: {:libnice_sink, msg}]}, state}
 
   @impl true
   def handle_other({:ice_payload, component_id, _payload} = msg, ctx, state) do
     if Map.has_key?(ctx.pads, Pad.ref(:output, component_id)) do
-      {{:ok, forward: {:ice_source, msg}}, state}
+      {{:ok, forward: {:libnice_source, msg}}, state}
     else
       Membrane.Logger.warn("No links for component: #{component_id}. Ignoring incoming message.")
       {:ok, state}

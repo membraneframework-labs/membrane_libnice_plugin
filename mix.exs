@@ -1,12 +1,12 @@
-defmodule Membrane.ICE.Plugin.Mixfile do
+defmodule Membrane.Libnice.Plugin.Mixfile do
   use Mix.Project
 
   @version "0.8.0"
-  @github_url "https://github.com/membraneframework/membrane_ice_plugin"
+  @github_url "https://github.com/membraneframework/membrane_libnice_plugin"
 
   def project do
     [
-      app: :membrane_ice_plugin,
+      app: :membrane_libnice_plugin,
       version: @version,
       elixir: "~> 1.10",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -14,11 +14,11 @@ defmodule Membrane.ICE.Plugin.Mixfile do
       deps: deps(),
 
       # hex
-      description: "Membrane plugin for ICE protocol",
+      description: "Membrane plugin using libnice for ICE protocol",
       package: package(),
 
       # docs
-      name: "Membrane ICE plugin",
+      name: "Membrane Libnice plugin",
       source_url: @github_url,
       homepage_url: "https://membraneframework.org",
       docs: docs()
@@ -65,7 +65,7 @@ defmodule Membrane.ICE.Plugin.Mixfile do
       main: "readme",
       extras: ["README.md", "LICENSE"],
       source_ref: "v#{@version}",
-      nest_modules_by_prefix: [Membrane.ICE]
+      nest_modules_by_prefix: [Membrane.Libnice]
     ]
   end
 end
