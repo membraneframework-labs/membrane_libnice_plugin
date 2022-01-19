@@ -1,10 +1,10 @@
-defmodule Membrane.ICE.Handshake.Default do
+defmodule Membrane.Libnice.Handshake.Default do
   @moduledoc """
-  Module by default used after establishing ICE connection. It does nothing so no handshake
+  Module by default used after establishing Libnice connection. It does nothing so no handshake
   is in fact performed.
   """
 
-  @behaviour Membrane.ICE.Handshake
+  @behaviour Membrane.Libnice.Handshake
 
   @impl true
   def init(_id, _parent, _opts), do: {:finished, nil}

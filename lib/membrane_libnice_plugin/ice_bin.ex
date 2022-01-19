@@ -1,34 +1,34 @@
-defmodule Membrane.ICE.Bin do
+defmodule Membrane.Libnice.Bin do
   @moduledoc """
   Bin used for establishing ICE connection, sending and receiving messages.
 
   ### Architecture and pad semantic
   Both input and output pads are dynamic ones.
-  One instance of ICE Bin is responsible for handling only one ICE stream which can have
+  One instance of Libnice Bin is responsible for handling only one ICE stream which can have
   multiple components.
   Each pad is responsible for carrying data from/to one component.
 
   ### Linking using output pad
-  To receive messages after establishing ICE connection you have to link ICE Bin to your element
+  To receive messages after establishing ICE connection you have to link Libnice Bin to your element
   via `Pad.ref(:output, component_id)`.  `component_id` is an id of component from which your
   element will receive messages. E.g. if you passed as `n_components` 2 it means that there will be
-  two components and you can link ICE Bin to your element via `Pad.ref(:output, 1)`
+  two components and you can link Libnice Bin to your element via `Pad.ref(:output, 1)`
   and `Pad.ref(:output, 2)`.
 
-  **Important**: you can link to ICE Bin using its output pad in any moment you want but if you don't
+  **Important**: you can link to Libnice Bin using its output pad in any moment you want but if you don't
   want to miss any messages do it before playing your pipeline.
 
   **Important**: you can't link multiple elements using the same `component_id`. Messages from
   one component can be conveyed only to one element.
 
   ### Linking using input pad
-  To send messages after establishing ICE connection you have to link to ICE Bin via
+  To send messages after establishing ICE connection you have to link to Libnice Bin via
   `Pad.ref(:input, component_id)`. `component_id` is an id of component which will be used to send
   messages via net. To send data from multiple elements via the same `component_id` you have to
   use [membrane_funnel_plugin](https://github.com/membraneframework/membrane_funnel_plugin).
 
   ### Messages API
-  You can send following messages to ICE Bin:
+  You can send following messages to Libnice Bin:
 
   - `:gather_candidates`
 
@@ -52,30 +52,15 @@ defmodule Membrane.ICE.Bin do
     Triggered by: `{:set_remote_candidate, candidate, component_id}` or `{:parse_remote_sdp, sdp}`
 
   ### Sending and receiving messages
-  To send or receive messages just link to ICE Bin using relevant pads.
-  As soon as connection is established your element will receive demands from ICE Sink or
-  messages from ICE Source.
+  To send or receive messages just link to Libnice Bin using relevant pads.
+  As soon as connection is established your element will receive demands from Libnice Sink or
+  messages from Libnice Source.
   """
   use Membrane.Bin
 
-  alias Membrane.ICE.{Connector, TurnUtils}
+  alias Membrane.Libnice.Connector
 
   require Membrane.Logger
-
-  @typedoc """
-  Options defining the behavior of ICE.Bin in relation to integrated TURN servers.
-  - `:use_integrated_turn` - says, whether or not, use integrated TURN servers
-  - `:ip` - IP, where integrated TURN server will open its sockets
-  - `:mock_ip` - IP, that will be put part of XOR-RELAYED-ADDRESS attribute in Allocation Succes message.
-  Might be, but doesn't have to be equal to `:ip`
-  - `:ports_range` range, where integrated TURN server will try to open ports
-  """
-  @type integrated_turn_options_t() :: [
-          use_integrated_turn: boolean(),
-          ip: :inet.ip4_address() | nil,
-          mock_ip: :inet.ip4_address() | nil,
-          ports_range: {:inet.port_number(), :inet.port_number()} | nil
-        ]
 
   def_options n_components: [
                 spec: integer(),
@@ -117,11 +102,6 @@ defmodule Membrane.ICE.Bin do
                 default: [],
                 description:
                   "Options for handshake module. They will be passed to init function of hsk_module"
-              ],
-              integrated_turn_options: [
-                spec: [integrated_turn_options_t()],
-                default: [use_integrated_turn: false],
-                description: "Integrated TURN Options"
               ]
 
   def_input_pad :input,
@@ -142,18 +122,11 @@ defmodule Membrane.ICE.Bin do
       stream_name: stream_name,
       stun_servers: stun_servers,
       turn_servers: turn_servers,
-      integrated_turn_options: integrated_turn_options,
       controlling_mode: controlling_mode,
       port_range: port_range,
       handshake_module: hsk_module,
       handshake_opts: hsk_opts
     } = options
-
-    integrated_turn_options = Map.new(integrated_turn_options)
-
-    %{
-      use_integrated_turn: use_integrated_turn
-    } = integrated_turn_options
 
     {:ok, connector} =
       Connector.start_link(
@@ -162,47 +135,35 @@ defmodule Membrane.ICE.Bin do
         stream_name: stream_name,
         stun_servers: stun_servers,
         turn_servers: turn_servers,
-        use_integrated_turn: use_integrated_turn,
         controlling_mode: controlling_mode,
         port_range: port_range,
         hsk_module: hsk_module,
         hsk_opts: hsk_opts
       )
 
-    integrated_turn_servers =
-      if use_integrated_turn,
-        do: start_integrated_turn_servers(integrated_turn_options, connector),
-        else: []
-
-    {:ok, ice} = Connector.get_ice_pid(connector)
+    {:ok, libnice} = Connector.get_libnice_pid(connector)
 
     children = [
-      ice_source: Membrane.ICE.Source,
-      ice_sink: %Membrane.ICE.Sink{ice: ice, use_integrated_turn: use_integrated_turn}
+      libnice_source: Membrane.Libnice.Source,
+      libnice_sink: %Membrane.Libnice.Sink{libnice: libnice}
     ]
 
     spec = %ParentSpec{
       children: children
     }
 
-    notify_msg = {
-      :integrated_turn_servers,
-      integrated_turn_servers
-    }
-
-    {{:ok, spec: spec, notify: notify_msg},
-     %{:connector => connector, integrated_turn_servers: integrated_turn_servers}}
+    {{:ok, spec: spec}, %{:connector => connector}}
   end
 
   @impl true
   def handle_pad_added(Pad.ref(:output, _component_id) = pad, _ctx, state) do
-    links = [link(:ice_source) |> via_out(pad) |> to_bin_output(pad)]
+    links = [link(:libnice_source) |> via_out(pad) |> to_bin_output(pad)]
     {{:ok, spec: %ParentSpec{links: links}}, state}
   end
 
   @impl true
   def handle_pad_added(Pad.ref(:input, _component_id) = pad, _ctx, state) do
-    links = [link_bin_input(pad) |> via_in(pad) |> to(:ice_sink)]
+    links = [link_bin_input(pad) |> via_in(pad) |> to(:libnice_sink)]
     {{:ok, spec: %ParentSpec{links: links}}, state}
   end
 
@@ -278,25 +239,20 @@ defmodule Membrane.ICE.Bin do
 
   @impl true
   def handle_other({:component_state_ready, _stream_id, _component_id} = msg, _ctx, state),
-    do: {{:ok, forward: {:ice_sink, msg}}, state}
+    do: {{:ok, forward: {:libnice_sink, msg}}, state}
 
   @impl true
   def handle_other({:component_state_failed, stream_id, component_id}, _ctx, state),
     do: {{:ok, notify: {:connection_failed, stream_id, component_id}}, state}
 
   @impl true
-  def handle_other({:selected_integrated_turn_pid, _pid} = msg, _ctx, state) do
-    {{:ok, forward: {:ice_sink, msg}}, state}
-  end
-
-  @impl true
   def handle_other({:hsk_finished, _component_id, _hsk_data} = msg, _ctx, state),
-    do: {{:ok, [forward: {:ice_source, msg}, forward: {:ice_sink, msg}]}, state}
+    do: {{:ok, [forward: {:libnice_source, msg}, forward: {:libnice_sink, msg}]}, state}
 
   @impl true
   def handle_other({:ice_payload, component_id, _payload} = msg, ctx, state) do
     if Map.has_key?(ctx.pads, Pad.ref(:output, component_id)) do
-      {{:ok, forward: {:ice_source, msg}}, state}
+      {{:ok, forward: {:libnice_source, msg}}, state}
     else
       Membrane.Logger.warn("No links for component: #{component_id}. Ignoring incoming message.")
       {:ok, state}
@@ -329,49 +285,6 @@ defmodule Membrane.ICE.Bin do
 
   @impl true
   def handle_shutdown(_reason, state) do
-    Enum.each(state.integrated_turn_servers, &TurnUtils.stop_integrated_turn/1)
     GenServer.stop(state.connector)
   end
-
-  defp start_integrated_turn_servers(%{use_integrated_turn: true} = options, connector_pid)
-       when is_pid(connector_pid) do
-    ip = options[:ip] || {0, 0, 0, 0}
-    mock_ip = options[:mock_ip]
-    {min_port, max_port} = options[:ports_range] || {50_000, 59_999}
-    medium = trunc((min_port + max_port) / 2)
-
-    client_port_range = {min_port, medium}
-
-    alloc_port_range =
-      if medium == max_port,
-        do: {medium, max_port},
-        else: {medium + 1, max_port}
-
-    [:udp, :tcp]
-    |> Enum.map(fn transport ->
-      secret = TurnUtils.generate_secret()
-
-      {:ok, port, pid} =
-        TurnUtils.start_integrated_turn(
-          secret,
-          client_port_range: client_port_range,
-          alloc_port_range: alloc_port_range,
-          ip: ip,
-          mock_ip: mock_ip,
-          transport: transport,
-          peer_pid: connector_pid
-        )
-
-      %{
-        relay_type: transport,
-        secret: secret,
-        server_addr: ip,
-        mocked_server_addr: mock_ip,
-        server_port: port,
-        pid: pid
-      }
-    end)
-  end
-
-  defp start_integrated_turn_servers(_options, _connector_pid), do: []
 end

@@ -9,7 +9,7 @@ defmodule Example.Sender do
   @impl true
   def handle_init(_) do
     children = %{
-      ice: %Membrane.ICE.Bin{
+      libnice: %Membrane.Libnice.Bin{
         stream_name: "video",
         stun_servers: [
           %{
@@ -18,7 +18,7 @@ defmodule Example.Sender do
           }
         ],
         controlling_mode: true,
-        handshake_module: Membrane.ICE.Handshake.Default
+        handshake_module: Membrane.Libnice.Handshake.Default
       },
       source: %Hackney.Source{
         location: "https://membraneframework.github.io/static/samples/ffmpeg-testsrc.h264"
@@ -26,7 +26,7 @@ defmodule Example.Sender do
     }
 
     pad = Pad.ref(:input, 1)
-    links = [link(:source) |> via_out(:output) |> via_in(pad) |> to(:ice)]
+    links = [link(:source) |> via_out(:output) |> via_in(pad) |> to(:libnice)]
 
     spec = %ParentSpec{
       children: children,
@@ -38,7 +38,7 @@ defmodule Example.Sender do
 
   @impl true
   def handle_prepared_to_playing(_ctx, state) do
-    {{:ok, forward: [ice: :gather_candidates]}, state}
+    {{:ok, forward: [libnice: :gather_candidates]}, state}
   end
 
   @impl true
@@ -48,16 +48,16 @@ defmodule Example.Sender do
 
   @impl true
   def handle_other({:set_remote_credentials, remote_credentials}, _ctx, state) do
-    {{:ok, forward: {:ice, {:set_remote_credentials, remote_credentials}}}, state}
+    {{:ok, forward: {:libnice, {:set_remote_credentials, remote_credentials}}}, state}
   end
 
   @impl true
   def handle_other({:set_remote_candidate, candidate}, _ctx, state) do
-    {{:ok, forward: {:ice, {:set_remote_candidate, candidate, 1}}}, state}
+    {{:ok, forward: {:libnice, {:set_remote_candidate, candidate, 1}}}, state}
   end
 
   @impl true
   def handle_other(other, _ctx, state) do
-    {{:ok, forward: {:ice, other}}, state}
+    {{:ok, forward: {:libnice, other}}, state}
   end
 end

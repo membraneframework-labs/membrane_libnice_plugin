@@ -23,7 +23,7 @@ defmodule ExampleProject.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:membrane_ice_plugin, path: "../.."},
+      {:membrane_libnice_plugin, path: "../.."},
       {:membrane_core, github: "membraneframework/membrane_core", override: true},
       {:membrane_file_plugin, "~> 0.5.0"},
       {:membrane_hackney_plugin, "~> 0.4.0"}

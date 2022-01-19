@@ -9,7 +9,7 @@ defmodule Example.Receiver do
   @impl true
   def handle_init(_) do
     children = %{
-      ice: %Membrane.ICE.Bin{
+      libnice: %Membrane.Libnice.Bin{
         stun_servers: [
           %{
             server_addr: {64, 233, 161, 127},
@@ -17,7 +17,7 @@ defmodule Example.Receiver do
           }
         ],
         controlling_mode: false,
-        handshake_module: Membrane.ICE.Handshake.Default
+        handshake_module: Membrane.Libnice.Handshake.Default
       },
       sink: %File.Sink{
         location: "/tmp/ice-recv.h264"
@@ -25,7 +25,7 @@ defmodule Example.Receiver do
     }
 
     pad = Pad.ref(:output, 1)
-    links = [link(:ice) |> via_out(pad) |> to(:sink)]
+    links = [link(:libnice) |> via_out(pad) |> to(:sink)]
 
     spec = %ParentSpec{
       children: children,
@@ -37,7 +37,7 @@ defmodule Example.Receiver do
 
   @impl true
   def handle_prepared_to_playing(_ctx, state) do
-    {{:ok, forward: [ice: :gather_candidates]}, state}
+    {{:ok, forward: [libnice: :gather_candidates]}, state}
   end
 
   @impl true
@@ -47,16 +47,16 @@ defmodule Example.Receiver do
 
   @impl true
   def handle_other({:set_remote_credentials, remote_credentials}, _ctx, state) do
-    {{:ok, forward: {:ice, {:set_remote_credentials, remote_credentials}}}, state}
+    {{:ok, forward: {:libnice, {:set_remote_credentials, remote_credentials}}}, state}
   end
 
   @impl true
   def handle_other({:set_remote_candidate, candidate}, _ctx, state) do
-    {{:ok, forward: {:ice, {:set_remote_candidate, candidate, 1}}}, state}
+    {{:ok, forward: {:libnice, {:set_remote_candidate, candidate, 1}}}, state}
   end
 
   @impl true
   def handle_other(other, _ctx, state) do
-    {{:ok, forward: {:ice, other}}, state}
+    {{:ok, forward: {:libnice, other}}, state}
   end
 end

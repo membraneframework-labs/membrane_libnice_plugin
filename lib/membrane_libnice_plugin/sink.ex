@@ -1,24 +1,19 @@
-defmodule Membrane.ICE.Sink do
+defmodule Membrane.Libnice.Sink do
   @moduledoc """
   Element that sends buffers (over UDP or TCP) received on different pads to relevant receivers.
   """
 
   use Membrane.Sink
 
-  alias Membrane.ICE.Handshake
+  alias Membrane.Libnice.Handshake
   alias Membrane.Funnel
 
   require Membrane.Logger
 
-  def_options ice: [
+  def_options libnice: [
                 type: :pid,
                 default: nil,
                 description: "Pid of ExLibnice instance. It's needed to send packets out."
-              ],
-              use_integrated_turn: [
-                spec: binary(),
-                default: true,
-                description: "Indicator, if use integrated TURN"
               ]
 
   def_input_pad :input,
@@ -29,12 +24,11 @@ defmodule Membrane.ICE.Sink do
 
   @impl true
   def handle_init(options) do
-    %__MODULE__{ice: ice, use_integrated_turn: use_integrated_turn} = options
+    %__MODULE__{libnice: libnice} = options
 
     {:ok,
      %{
-       ice: ice,
-       use_integrated_turn: use_integrated_turn,
+       libnice: libnice,
        ready_components: MapSet.new(),
        finished_hsk: %{}
      }}
@@ -60,25 +54,14 @@ defmodule Membrane.ICE.Sink do
     {:ok, state}
   end
 
-  def handle_write(
-        Pad.ref(:input, _component_id) = pad,
-        %Membrane.Buffer{payload: payload},
-        %{playback_state: :playing},
-        %{use_integrated_turn: true, selected_integrated_turn_pid: turn_pid} = state
-      )
-      when is_pid(turn_pid) do
-    send(turn_pid, {:ice_payload, payload})
-    {{:ok, demand: pad}, state}
-  end
-
   @impl true
   def handle_write(
         Pad.ref(:input, component_id) = pad,
         %Membrane.Buffer{payload: payload},
         %{playback_state: :playing},
-        %{ice: ice, stream_id: stream_id} = state
+        %{libnice: libnice, stream_id: stream_id} = state
       ) do
-    case ExLibnice.send_payload(ice, stream_id, component_id, payload) do
+    case ExLibnice.send_payload(libnice, stream_id, component_id, payload) do
       :ok ->
         {{:ok, demand: pad}, state}
 
@@ -108,10 +91,6 @@ defmodule Membrane.ICE.Sink do
   def handle_other({:hsk_finished, component_id, hsk_data}, ctx, state) do
     state = put_in(state.finished_hsk[component_id], hsk_data)
     maybe_send_demands(component_id, ctx, state)
-  end
-
-  def handle_other({:selected_integrated_turn_pid, pid}, _ctx, state) do
-    {:ok, Map.put(state, :selected_integrated_turn_pid, pid)}
   end
 
   defp maybe_send_demands(component_id, ctx, state) do

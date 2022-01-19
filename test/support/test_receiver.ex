@@ -1,4 +1,4 @@
-defmodule Membrane.ICE.Support.TestReceiver do
+defmodule Membrane.Libnice.Support.TestReceiver do
   @moduledoc false
 
   use Membrane.Pipeline
@@ -10,7 +10,7 @@ defmodule Membrane.ICE.Support.TestReceiver do
   @impl true
   def handle_init(opts) do
     children = %{
-      ice: %Membrane.ICE.Bin{
+      ice: %Membrane.Libnice.Bin{
         stun_servers: [%{server_addr: "stun1.l.google.com", server_port: 19_302}],
         controlling_mode: false,
         handshake_module: opts[:handshake_module],
