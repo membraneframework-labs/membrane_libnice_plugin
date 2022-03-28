@@ -1,7 +1,7 @@
 defmodule Membrane.Libnice.Plugin.Mixfile do
   use Mix.Project
 
-  @version "0.8.0"
+  @version "0.1.0"
   @github_url "https://github.com/membraneframework/membrane_libnice_plugin"
 
   def project do
