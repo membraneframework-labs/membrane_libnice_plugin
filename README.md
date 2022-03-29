@@ -17,7 +17,7 @@ The package can be installed by adding `membrane_libnice_plugin` to your list of
 ```elixir
 def deps do
   [
-    {:membrane_libnice_plugin, "~> 0.1.0"}
+    {:membrane_libnice_plugin, "~> 0.9.0"}
   ]
 end
 ```
